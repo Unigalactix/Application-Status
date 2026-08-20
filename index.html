@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="A private-by-design dashboard for tracking job applications and pipeline progress.">
+  <meta name="description" content="A live dashboard for tracking job applications, pipeline progress, referrals, and compensation.">
   <title>Application Tracker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,31 +43,104 @@
         </div>
 
         <div class="metrics-grid">
-          <article class="metric metric-total">
+          <button class="metric metric-total" type="button" data-drilldown="all" title="View all applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="files"></i></span>
             <p>Total applications</p>
             <strong id="totalMetric">0</strong>
             <span id="monthMetric">0 this month</span>
-          </article>
-          <article class="metric metric-active">
+          </button>
+          <button class="metric metric-active" type="button" data-drilldown="active" title="View active applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="activity"></i></span>
             <p>Active pipeline</p>
             <strong id="activeMetric">0</strong>
             <span>Open opportunities</span>
-          </article>
-          <article class="metric metric-interview">
+          </button>
+          <button class="metric metric-interview" type="button" data-drilldown="interview" title="View interview-stage applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="messages-square"></i></span>
             <p>Interviews</p>
             <strong id="interviewMetric">0</strong>
             <span>Interview-stage roles</span>
-          </article>
-          <article class="metric metric-offer">
+          </button>
+          <button class="metric metric-offer" type="button" data-drilldown="offer" title="View offers">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="trophy"></i></span>
             <p>Offers</p>
             <strong id="offerMetric">0</strong>
             <span>Successful outcomes</span>
-          </article>
+          </button>
         </div>
+      </div>
+    </section>
+
+    <section class="portals-section" aria-labelledby="portalsHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Quick access</p>
+            <h2 id="portalsHeading">Job portals</h2>
+          </div>
+        </div>
+        <nav class="portal-grid" aria-label="Job application portals">
+          <a class="portal-link" href="https://www.linkedin.com/jobs/" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=linkedin.com&amp;sz=128" alt=""></span>
+            <span><strong>LinkedIn Jobs</strong><small>Professional network</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.dice.com/jobs" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=dice.com&amp;sz=128" alt=""></span>
+            <span><strong>Dice</strong><small>Technology roles</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://jobright.ai/jobs/recommend" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://jobright.ai/favicon.ico" alt=""></span>
+            <span><strong>Jobright</strong><small>AI job matching</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.indeed.com/" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://cdn.simpleicons.org/indeed" alt=""></span>
+            <span><strong>Indeed</strong><small>Broad job search</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.glassdoor.com/Job/index.htm" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://cdn.simpleicons.org/glassdoor" alt=""></span>
+            <span><strong>Glassdoor</strong><small>Jobs and company research</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.builtinseattle.com/jobs" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=builtinseattle.com&amp;sz=128" alt=""></span>
+            <span><strong>Built In Seattle</strong><small>Local technology roles</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://wellfound.com/jobs" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://cdn.simpleicons.org/wellfound" alt=""></span>
+            <span><strong>Wellfound</strong><small>Startup opportunities</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.levels.fyi/jobs" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=levels.fyi&amp;sz=128" alt=""></span>
+            <span><strong>Levels.fyi Jobs</strong><small>Technology compensation</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://apply.careers.microsoft.com/careers" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=microsoft.com&amp;sz=128" alt=""></span>
+            <span><strong>Microsoft Careers</strong><small>Direct applications</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.amazon.jobs/en/search" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=amazon.jobs&amp;sz=128" alt=""></span>
+            <span><strong>Amazon Jobs</strong><small>Direct applications</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.google.com/about/careers/applications/jobs/results/" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://cdn.simpleicons.org/google" alt=""></span>
+            <span><strong>Google Careers</strong><small>Direct applications</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+          <a class="portal-link" href="https://www.usajobs.gov/" target="_blank" rel="noopener noreferrer">
+            <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=usajobs.gov&amp;sz=128" alt=""></span>
+            <span><strong>USAJOBS</strong><small>Federal opportunities</small></span>
+            <i data-lucide="external-link" aria-hidden="true"></i>
+          </a>
+        </nav>
       </div>
     </section>
 
@@ -88,18 +161,86 @@
               </div>
               <i data-lucide="pie-chart" aria-hidden="true"></i>
             </div>
-            <div class="chart-frame"><canvas id="statusChart"></canvas></div>
+            <div class="chart-frame"><canvas id="statusChart" role="img" aria-label="Applications by status. Select a chart segment to view matching applications."></canvas></div>
           </article>
           <article class="chart-panel">
             <div class="panel-heading">
               <div>
-                <h3>Top companies</h3>
-                <p>Organizations with the most applications</p>
+                <h3>Applications submitted</h3>
+                <p>Daily volume over the last 30 days</p>
               </div>
-              <i data-lucide="building-2" aria-hidden="true"></i>
+              <i data-lucide="calendar-range" aria-hidden="true"></i>
             </div>
-            <div class="chart-frame"><canvas id="companyChart"></canvas></div>
+            <div class="chart-frame"><canvas id="timelineChart" role="img" aria-label="Applications submitted during the last 30 days."></canvas></div>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="insights-section" aria-labelledby="insightsHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Conversion signals</p>
+            <h2 id="insightsHeading">Pipeline insights</h2>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Interview-stage funnel</h3>
+                <p>Progression reported in the Interview Stage column</p>
+              </div>
+              <i data-lucide="funnel" aria-hidden="true"></i>
+            </div>
+            <div id="stageFunnel" class="stage-funnel" aria-label="Interview stage funnel"></div>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Referral impact</h3>
+                <p>Interview rate for referred and direct applications</p>
+              </div>
+              <i data-lucide="users" aria-hidden="true"></i>
+            </div>
+            <div class="referral-summary">
+              <div><strong id="referredCount">0</strong><span>With referral</span></div>
+              <div><strong id="directCount">0</strong><span>Without referral</span></div>
+              <div><strong id="referralLift">N/A</strong><span>Interview-rate lift</span></div>
+            </div>
+            <div class="chart-frame referral-frame"><canvas id="referralChart" role="img" aria-label="Referral and interview outcome comparison."></canvas></div>
+            <p id="referralNote" class="data-note"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="compensation-section" aria-labelledby="compensationHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Active opportunities</p>
+            <h2 id="compensationHeading">Compensation overview</h2>
+          </div>
+          <p id="compensationSummary" class="result-summary">Preparing salary data</p>
+        </div>
+        <div class="compensation-wrap">
+          <table class="compensation-table">
+            <thead>
+              <tr>
+                <th scope="col">Company</th>
+                <th scope="col">Role</th>
+                <th scope="col">Salary band</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="compensationBody"></tbody>
+          </table>
+          <div id="compensationEmpty" class="inline-empty" hidden>
+            <i data-lucide="badge-dollar-sign" aria-hidden="true"></i>
+            <div><strong>No salary bands recorded</strong><span>Active roles will appear here when Salary Band values are added.</span></div>
+          </div>
         </div>
       </div>
     </section>
@@ -124,20 +265,46 @@
               </select>
               <i data-lucide="chevron-down" aria-hidden="true"></i>
             </label>
+            <label class="select-control role-control">
+              <span class="sr-only">Filter by role</span>
+              <select id="roleFilter">
+                <option value="">All roles</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </label>
           </div>
         </div>
 
+        <div id="drilldownBar" class="drilldown-bar" hidden aria-live="polite">
+          <div>
+            <span>Viewing</span>
+            <strong id="drilldownLabel">All applications</strong>
+          </div>
+          <button id="clearDrilldown" type="button">
+            <i data-lucide="x" aria-hidden="true"></i>
+            Clear drill-down
+          </button>
+        </div>
         <div id="loadMessage" class="load-message" hidden role="status"></div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th scope="col">Company / Source</th>
-                <th scope="col">Role / Application ID</th>
-                <th scope="col">Status / Last update</th>
-                <th scope="col">Location / Work mode</th>
-                <th scope="col">Applied</th>
-                <th scope="col">Next step / Evidence</th>
+                <th scope="col">Company</th>
+                <th scope="col">Role / Title</th>
+                <th scope="col">Application ID</th>
+                <th scope="col">Current Status</th>
+                <th scope="col">Application Date</th>
+                <th scope="col">Last Status Update</th>
+                <th scope="col">Recruiter / Point of Contact</th>
+                <th scope="col">Resume Version</th>
+                <th scope="col">Interview Stage</th>
+                <th scope="col">Salary Band</th>
+                <th scope="col">Referral</th>
+                <th scope="col">Location / Work Mode</th>
+                <th scope="col">Portal / Source</th>
+                <th scope="col">Action Required / Next Steps</th>
+                <th scope="col">Notes / Verification Evidence</th>
               </tr>
             </thead>
             <tbody id="applicationsBody"></tbody>
@@ -148,9 +315,52 @@
           <h3>No applications found</h3>
           <p id="emptyStateText">Your synced applications will appear here.</p>
         </div>
+        <div id="pagination" class="pagination" hidden>
+          <p id="pageSummary">Showing 0 applications</p>
+          <div>
+            <button id="previousPage" type="button" title="Previous page" aria-label="Previous page">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+            </button>
+            <span id="pageIndicator">Page 1 of 1</span>
+            <button id="nextPage" type="button" title="Next page" aria-label="Next page">
+              <i data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
+
+  <dialog id="kpiDrilldownDialog" class="kpi-dialog" aria-labelledby="kpiDialogTitle">
+    <div class="kpi-dialog-header">
+      <div>
+        <p class="eyebrow">KPI drill-down</p>
+        <h2 id="kpiDialogTitle">Applications</h2>
+        <p id="kpiDialogSummary" class="result-summary"></p>
+      </div>
+      <button id="closeKpiDialog" class="dialog-close" type="button" title="Close" aria-label="Close KPI drill-down">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div id="kpiDialogTableWrap" class="kpi-dialog-table-wrap">
+      <table class="kpi-dialog-table">
+        <thead>
+          <tr>
+            <th scope="col">Company</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Interview Stage</th>
+            <th scope="col">Applied</th>
+          </tr>
+        </thead>
+        <tbody id="kpiDrilldownBody"></tbody>
+      </table>
+    </div>
+    <div id="kpiDialogEmpty" class="inline-empty" hidden>
+      <i data-lucide="inbox" aria-hidden="true"></i>
+      <div><strong>No matching applications</strong><span>This KPI has no records yet.</span></div>
+    </div>
+  </dialog>
 
   <footer>
     <div class="shell footer-inner">

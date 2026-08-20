@@ -6,7 +6,7 @@ A static, responsive dashboard that loads the latest job application data direct
 
 The live CSV is configured in `app.js` with the published URL for sheet tab `1438332888`. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
 
-Because this is a **Publish to web** URL, every field in the CSV is publicly accessible to anyone with the URL. Keep sensitive information out of the published tab.
+Because this is a **Publish to web** URL, every field in the CSV is publicly accessible to anyone with the URL, even if a field is not displayed by the dashboard. This includes recruiter names and email addresses in `Recruiter / POC (Name & Email)`. Remove sensitive contact details from the published tab or publish a separate sanitized tab if that information should remain private.
 
 The current tracker columns are:
 
@@ -16,10 +16,27 @@ The current tracker columns are:
 - `Current Status`
 - `Application Date`
 - `Last Status Update`
+- `Recruiter / POC (Name & Email)`
+- `Resume Version` (supported when the column is added to the sheet)
+- `Interview Stage`
+- `Salary Band`
+- `Referral`
 - `Location / Work Mode`
 - `Portal / Source`
 - `Action Required / Next Steps`
 - `Notes / Verification Evidence`
+
+## Dashboard views
+
+- Pipeline totals and an interactive status chart
+- Daily application volume for the latest 30 days
+- Interview-stage funnel with terminal outcomes reported separately
+- Referral cohort sizes, interview rates, and referral lift when both cohorts exist
+- Compensation details for active roles with meaningful salary bands
+- Search, status, role concentration, and exact-role filters
+- Complete 15-column dataset table with 10-row pagination
+
+Missing data is reported explicitly. For example, referral lift is shown as `N/A` until at least one referred application exists, and the compensation view remains empty while salary bands are blank or `N/A`.
 
 ## Preview locally
 
