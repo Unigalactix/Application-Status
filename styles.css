@@ -160,6 +160,65 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
+.expandable-sections {
+  padding: 28px 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.expandable-sections > section {
+  min-width: 0;
+  padding: 0;
+}
+
+.expandable-sections > section > .shell {
+  width: 100%;
+  min-height: 172px;
+  padding: 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.expandable-sections > section:not(.is-expanded) > .shell:hover {
+  transform: translateY(-2px);
+  border-color: #a9beb1;
+  box-shadow: 0 16px 34px rgba(28, 45, 35, 0.12);
+}
+
+.expandable-sections > section:not(.is-expanded) .section-heading {
+  height: 100%;
+  margin: 0;
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.expandable-sections > section:not(.is-expanded) .section-heading h2 {
+  font-size: 1.1rem;
+}
+
+.expandable-sections > section:not(.is-expanded) .section-toggle {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.expandable-sections > section.is-expanded {
+  grid-column: 1 / -1;
+}
+
+.expandable-sections > section.is-expanded > .shell {
+  min-height: 0;
+  padding: 24px;
+  cursor: default;
+}
+
 .analytics-section {
   padding-bottom: 20px;
 }
@@ -270,6 +329,44 @@ h3 {
 
 .compact-heading {
   margin-bottom: 18px;
+}
+
+.section-toggle {
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--forest);
+  background: var(--paper);
+  border: 1px solid #bdcbc2;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.section-toggle:hover,
+.section-toggle:focus-visible {
+  border-color: var(--forest);
+  outline: 3px solid rgba(24, 79, 58, 0.12);
+  outline-offset: 1px;
+}
+
+.section-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 160ms ease;
+}
+
+.section-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.collapsible-section-content > .insight-carousel-controls {
+  margin-bottom: 12px;
+  justify-content: flex-end;
 }
 
 .result-summary {
@@ -383,6 +480,51 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.visual-carousel-viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.visual-carousel-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.visual-carousel-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  gap: 18px;
+}
+
+.visual-carousel-card {
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.visual-carousel-card:hover {
+  transform: translateY(-2px);
+  border-color: #a9beb1;
+  box-shadow: 0 16px 34px rgba(28, 45, 35, 0.12);
+}
+
+.visual-carousel-card:focus-visible {
+  border-color: var(--forest);
+  outline: 3px solid rgba(24, 79, 58, 0.16);
+  outline-offset: -3px;
+}
+
+.visual-carousel-card canvas {
+  cursor: default;
+}
+
+#statusChart {
+  cursor: pointer;
 }
 
 .intelligence-grid {
@@ -596,6 +738,43 @@ h3 {
 
 .insight-detail-dialog .insight-metric strong {
   font-size: 1.25rem;
+}
+
+.visualization-dialog-body {
+  max-height: min(650px, calc(100dvh - 135px));
+  padding: 22px;
+  overflow: auto;
+}
+
+.visualization-dialog-body .chart-panel {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+.visualization-dialog-body .panel-heading {
+  display: none;
+}
+
+.visualization-dialog-body .chart-frame {
+  height: min(460px, calc(100dvh - 235px));
+  margin-top: 0;
+}
+
+.visualization-dialog-body .referral-summary {
+  margin-top: 0;
+}
+
+.visualization-dialog-body .referral-frame {
+  height: min(360px, calc(100dvh - 330px));
+  margin-top: 16px;
+}
+
+.visualization-dialog-body .stage-funnel {
+  margin-top: 0;
 }
 
 .chart-panel {
@@ -905,7 +1084,7 @@ h3 {
 
 table {
   width: 100%;
-  min-width: 2540px;
+  min-width: 2700px;
   border-collapse: collapse;
 }
 
@@ -973,6 +1152,34 @@ th {
 .column-filter-button svg {
   width: 15px;
   height: 15px;
+}
+
+.email-link-cell {
+  min-width: 132px;
+}
+
+.email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--forest);
+  font-weight: 700;
+  text-decoration-color: #9bb4a6;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.email-link:hover,
+.email-link:focus-visible {
+  color: #0f3929;
+  text-decoration-color: var(--amber);
+  outline: 2px solid rgba(24, 79, 58, 0.16);
+  outline-offset: 3px;
+}
+
+.email-link svg {
+  width: 14px;
+  height: 14px;
 }
 
 .column-filter-menu {
@@ -1341,7 +1548,7 @@ tbody tr:hover {
 }
 
 .kpi-dialog-table {
-  min-width: 760px;
+  min-width: 900px;
 }
 
 .kpi-dialog-table thead {
@@ -1479,6 +1686,10 @@ footer {
 }
 
 @media (max-width: 900px) {
+  .expandable-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .portal-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1530,6 +1741,15 @@ footer {
   .compensation-section,
   .applications-section {
     padding: 32px 0;
+  }
+
+  .expandable-sections {
+    padding: 20px 0;
+    grid-template-columns: 1fr;
+  }
+
+  .expandable-sections > section > .shell {
+    min-height: 150px;
   }
 
   .section-heading,

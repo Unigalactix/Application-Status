@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="A live dashboard for tracking job applications, pipeline progress, referrals, and compensation.">
   <title>Application Tracker</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
@@ -71,6 +72,7 @@
       </div>
     </section>
 
+    <div class="expandable-sections shell">
     <section class="portals-section" aria-labelledby="portalsHeading">
       <div class="shell">
         <div class="section-heading compact-heading">
@@ -78,8 +80,12 @@
             <p class="eyebrow">Quick access</p>
             <h2 id="portalsHeading">Job portals</h2>
           </div>
+          <button id="toggleJobPortals" class="section-toggle" type="button" aria-expanded="false" aria-controls="jobPortalsContent">
+            <span>Show portals</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
-        <nav class="portal-grid" aria-label="Job application portals">
+        <nav id="jobPortalsContent" class="portal-grid" aria-label="Job application portals" hidden>
           <a class="portal-link" href="https://www.linkedin.com/jobs/" target="_blank" rel="noopener noreferrer">
             <span class="portal-logo"><img src="https://www.google.com/s2/favicons?domain=linkedin.com&amp;sz=128" alt=""></span>
             <span><strong>LinkedIn Jobs</strong><small>Professional network</small></span>
@@ -151,9 +157,24 @@
             <p class="eyebrow">Distribution</p>
             <h2 id="analyticsHeading">Pipeline analytics</h2>
           </div>
+          <button id="togglePipelineAnalytics" class="section-toggle" type="button" aria-expanded="false" aria-controls="pipelineAnalyticsContent">
+            <span>Show analytics</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
-        <div class="charts-grid">
-          <article class="chart-panel">
+        <div id="pipelineAnalyticsContent" class="collapsible-section-content" hidden>
+          <div class="insight-carousel-controls" aria-label="Pipeline analytics navigation">
+            <button id="previousAnalytics" type="button" title="Previous analytics card" aria-label="Previous analytics card">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+            </button>
+            <span id="analyticsPosition" aria-live="polite">1 of 2</span>
+            <button id="nextAnalytics" type="button" title="Next analytics card" aria-label="Next analytics card">
+              <i data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div id="analyticsCarouselViewport" class="visual-carousel-viewport" tabindex="0" aria-label="Pipeline analytics cards">
+            <div class="visual-carousel-track">
+          <article class="chart-panel visual-carousel-card">
             <div class="panel-heading">
               <div>
                 <h3>Applications by status</h3>
@@ -163,7 +184,7 @@
             </div>
             <div class="chart-frame"><canvas id="statusChart" role="img" aria-label="Applications by status. Select a chart segment to view matching applications."></canvas></div>
           </article>
-          <article class="chart-panel">
+          <article class="chart-panel visual-carousel-card">
             <div class="panel-heading">
               <div>
                 <h3>Applications submitted</h3>
@@ -173,6 +194,8 @@
             </div>
             <div class="chart-frame"><canvas id="timelineChart" role="img" aria-label="Applications submitted during the last 30 days."></canvas></div>
           </article>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -184,9 +207,24 @@
             <p class="eyebrow">Conversion signals</p>
             <h2 id="insightsHeading">Pipeline insights</h2>
           </div>
+          <button id="togglePipelineInsights" class="section-toggle" type="button" aria-expanded="false" aria-controls="pipelineInsightsContent">
+            <span>Show insights</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
-        <div class="insights-grid">
-          <article class="chart-panel">
+        <div id="pipelineInsightsContent" class="collapsible-section-content" hidden>
+          <div class="insight-carousel-controls" aria-label="Pipeline insights navigation">
+            <button id="previousPipelineInsight" type="button" title="Previous pipeline insight" aria-label="Previous pipeline insight">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+            </button>
+            <span id="pipelineInsightPosition" aria-live="polite">1 of 2</span>
+            <button id="nextPipelineInsight" type="button" title="Next pipeline insight" aria-label="Next pipeline insight">
+              <i data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div id="pipelineInsightsCarouselViewport" class="visual-carousel-viewport" tabindex="0" aria-label="Pipeline insight cards">
+            <div class="visual-carousel-track">
+          <article class="chart-panel visual-carousel-card">
             <div class="panel-heading">
               <div>
                 <h3>Interview-stage funnel</h3>
@@ -196,7 +234,7 @@
             </div>
             <div id="stageFunnel" class="stage-funnel" aria-label="Interview stage funnel"></div>
           </article>
-          <article class="chart-panel">
+          <article class="chart-panel visual-carousel-card">
             <div class="panel-heading">
               <div>
                 <h3>Referral impact</h3>
@@ -212,6 +250,8 @@
             <div class="chart-frame referral-frame"><canvas id="referralChart" role="img" aria-label="Referral and interview outcome comparison."></canvas></div>
             <p id="referralNote" class="data-note"></p>
           </article>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -223,6 +263,12 @@
             <p class="eyebrow">Decision support</p>
             <h2 id="intelligenceHeading">Application insights</h2>
           </div>
+          <button id="toggleApplicationInsights" class="section-toggle" type="button" aria-expanded="false" aria-controls="applicationInsightsContent">
+            <span>Show insights</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="applicationInsightsContent" class="collapsible-section-content" hidden>
           <div class="insight-carousel-controls" aria-label="Application insight navigation">
             <button id="previousInsights" type="button" title="Previous insights" aria-label="Previous insights">
               <i data-lucide="chevron-left" aria-hidden="true"></i>
@@ -232,9 +278,8 @@
               <i data-lucide="chevron-right" aria-hidden="true"></i>
             </button>
           </div>
-        </div>
-        <div id="insightCarouselViewport" class="insight-carousel-viewport" tabindex="0" aria-label="Application insight cards">
-          <div class="intelligence-grid">
+          <div id="insightCarouselViewport" class="insight-carousel-viewport" tabindex="0" aria-label="Application insight cards">
+            <div class="intelligence-grid">
           <article class="insight-panel">
             <div class="panel-heading">
               <div><h3>Pipeline health</h3><p>Active, stale, and waiting applications</p></div>
@@ -291,10 +336,13 @@
             </div>
             <div id="weeklyInsight" class="insight-content"></div>
           </article>
+            </div>
           </div>
         </div>
       </div>
     </section>
+
+    </div>
 
     <section class="compensation-section" aria-labelledby="compensationHeading">
       <div class="shell">
@@ -385,6 +433,7 @@
                 <th scope="col" data-filter-key="source">Portal / Source</th>
                 <th scope="col" data-filter-key="nextAction">Action Required / Next Steps</th>
                 <th scope="col" data-filter-key="notes">Notes / Verification Evidence</th>
+                <th scope="col" data-filter-key="latestEmailLink">Latest Email Link</th>
               </tr>
             </thead>
             <tbody id="applicationsBody"></tbody>
@@ -431,6 +480,7 @@
             <th scope="col">Status</th>
             <th scope="col">Interview Stage</th>
             <th scope="col">Applied</th>
+            <th scope="col">Latest Email</th>
           </tr>
         </thead>
         <tbody id="kpiDrilldownBody"></tbody>
@@ -454,6 +504,20 @@
       </button>
     </div>
     <div id="insightDialogBody" class="insight-dialog-body"></div>
+  </dialog>
+
+  <dialog id="visualizationDetailDialog" class="kpi-dialog visualization-detail-dialog" aria-labelledby="visualizationDialogTitle">
+    <div class="kpi-dialog-header">
+      <div>
+        <p class="eyebrow">Expanded view</p>
+        <h2 id="visualizationDialogTitle">Visualization details</h2>
+        <p id="visualizationDialogSummary" class="result-summary"></p>
+      </div>
+      <button id="closeVisualizationDialog" class="dialog-close" type="button" title="Close" aria-label="Close expanded visualization">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div id="visualizationDialogBody" class="visualization-dialog-body"></div>
   </dialog>
 
   <div id="columnFilterMenu" class="column-filter-menu" role="dialog" aria-labelledby="columnFilterTitle" hidden>

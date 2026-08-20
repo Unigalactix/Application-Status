@@ -13,7 +13,8 @@ const COLUMN_ALIASES = {
   location: ["Location / Work Mode", "Location", "Work Mode"],
   source: ["Portal / Source", "Source", "Portal"],
   nextAction: ["Action Required / Next Steps", "Next Steps", "Next Action"],
-  notes: ["Notes / Verification Evidence", "Notes", "Verification Evidence"]
+  notes: ["Notes / Verification Evidence", "Notes", "Verification Evidence"],
+  latestEmailLink: ["Latest Email Link", "Latest Email", "Email Link"]
 };
 
 const DATA_SOURCE = {
@@ -126,7 +127,8 @@ function normalizeRows(rows) {
         location: valueFor(row, COLUMN_ALIASES.location),
         source: valueFor(row, COLUMN_ALIASES.source),
         nextAction: valueFor(row, COLUMN_ALIASES.nextAction),
-        notes: valueFor(row, COLUMN_ALIASES.notes)
+        notes: valueFor(row, COLUMN_ALIASES.notes),
+        latestEmailLink: valueFor(row, COLUMN_ALIASES.latestEmailLink)
       };
     })
     .filter((application) => application.company !== "Unknown company" || application.role !== "Untitled role")
@@ -200,6 +202,40 @@ function createCell(text, className) {
   return cell;
 }
 
+function validExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function createEmailLinkCell(value) {
+  const cell = document.createElement("td");
+  cell.className = "email-link-cell";
+  const url = validExternalUrl(value);
+
+  if (!url) {
+    cell.textContent = value ? "Link unavailable" : "Not provided";
+    return cell;
+  }
+
+  const link = document.createElement("a");
+  link.className = "email-link";
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.title = "Open latest email";
+  link.append(document.createTextNode("Open email"));
+  const icon = document.createElement("i");
+  icon.dataset.lucide = "external-link";
+  icon.setAttribute("aria-hidden", "true");
+  link.append(icon);
+  cell.append(link);
+  return cell;
+}
+
 function createStackedCell(primary, secondary, className) {
   const cell = document.createElement("td");
   if (className) cell.className = className;
@@ -226,6 +262,9 @@ function displayValue(value) {
 
 function columnFilterValue(application, key) {
   if (key === "date") return formatDate(application);
+  if (key === "latestEmailLink") return validExternalUrl(application.latestEmailLink)
+    ? "Link available"
+    : "Not provided";
   if (key === "lastUpdate") {
     return application.rawLastUpdate
       ? formatDate({ parsedDate: application.parsedLastUpdate, rawDate: application.rawLastUpdate })
@@ -407,10 +446,12 @@ function renderTable() {
     row.append(createCell(displayValue(application.source)));
     row.append(createCell(displayValue(application.nextAction), "action-cell"));
     row.append(createCell(displayValue(application.notes), "notes-cell"));
+    row.append(createEmailLinkCell(application.latestEmailLink));
     fragment.append(row);
   });
 
   elements.body.append(fragment);
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
   elements.emptyState.hidden = applications.length > 0;
   document.querySelector(".table-wrap").hidden = state.applications.length === 0;
   const pagination = document.querySelector("#pagination");
@@ -784,6 +825,175 @@ function initializeInsightCarousel() {
   scrollToInsight(0, "auto");
 }
 
+function initializeApplicationInsightsDisclosure() {
+  initializeSectionDisclosure({
+    toggleId: "toggleApplicationInsights",
+    contentId: "applicationInsightsContent",
+    showLabel: "Show insights",
+    hideLabel: "Hide insights",
+    onExpand: () => requestAnimationFrame(() => scrollToInsight(state.insightStartIndex, "auto"))
+  });
+}
+
+function initializeSectionDisclosure({ toggleId, contentId, showLabel, hideLabel, onExpand }) {
+  const toggle = document.querySelector(`#${toggleId}`);
+  const content = document.querySelector(`#${contentId}`);
+  const section = toggle.closest("section");
+
+  toggle.addEventListener("click", () => {
+    const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!isExpanded));
+    toggle.querySelector("span").textContent = isExpanded ? showLabel : hideLabel;
+    content.hidden = isExpanded;
+    updateExpandableSectionGroup(section, !isExpanded);
+    if (!isExpanded) onExpand?.();
+  });
+}
+
+function updateExpandableSectionGroup(activeSection, isExpanded) {
+  const group = activeSection.closest(".expandable-sections");
+  activeSection.classList.toggle("is-expanded", isExpanded);
+  group.classList.toggle("has-expanded-section", isExpanded);
+  group.querySelectorAll(":scope > section").forEach((section) => {
+    section.hidden = isExpanded && section !== activeSection;
+  });
+}
+
+function initializeExpandableSectionCards() {
+  document.querySelectorAll(".expandable-sections > section").forEach((section) => {
+    const card = section.querySelector(":scope > .shell");
+    const toggle = section.querySelector(".section-toggle");
+    card.addEventListener("click", (event) => {
+      if (section.classList.contains("is-expanded")) return;
+      if (event.target.closest("button, a, input, select, textarea")) return;
+      toggle.click();
+    });
+  });
+}
+
+function resizeVisualCharts() {
+  state.statusChart?.resize();
+  state.timelineChart?.resize();
+  state.referralChart?.resize();
+}
+
+let activeVisualizationCard = null;
+
+function closeVisualizationDetail() {
+  document.querySelector("#visualizationDetailDialog").close();
+}
+
+function restoreVisualizationCard() {
+  if (!activeVisualizationCard) return;
+  const { card, parent, nextSibling } = activeVisualizationCard;
+  parent.insertBefore(card, nextSibling?.parentNode === parent ? nextSibling : null);
+  activeVisualizationCard = null;
+  requestAnimationFrame(() => {
+    resizeVisualCharts();
+    card.focus();
+  });
+}
+
+function openVisualizationDetail(card) {
+  const heading = card.querySelector(".panel-heading");
+  const title = heading.querySelector("h3").textContent;
+  const summary = heading.querySelector("p").textContent;
+  activeVisualizationCard = { card, parent: card.parentNode, nextSibling: card.nextSibling };
+  document.querySelector("#visualizationDialogTitle").textContent = title;
+  document.querySelector("#visualizationDialogSummary").textContent = summary;
+  document.querySelector("#visualizationDialogBody").append(card);
+  document.querySelector("#visualizationDetailDialog").showModal();
+  requestAnimationFrame(resizeVisualCharts);
+}
+
+function initializeVisualCarousel({
+  toggleId,
+  contentId,
+  viewportId,
+  previousId,
+  nextId,
+  positionId,
+  showLabel,
+  hideLabel
+}) {
+  const toggle = document.querySelector(`#${toggleId}`);
+  const content = document.querySelector(`#${contentId}`);
+  const viewport = document.querySelector(`#${viewportId}`);
+  const track = viewport.querySelector(".visual-carousel-track");
+  const cards = [...track.querySelectorAll(".visual-carousel-card")];
+  const previous = document.querySelector(`#${previousId}`);
+  const next = document.querySelector(`#${nextId}`);
+  const position = document.querySelector(`#${positionId}`);
+  const section = toggle.closest("section");
+  let currentIndex = 0;
+
+  const updateControls = () => {
+    position.textContent = `${currentIndex + 1} of ${cards.length}`;
+    previous.disabled = currentIndex === 0;
+    next.disabled = currentIndex === cards.length - 1;
+  };
+
+  const scrollToCard = (index, behavior = "smooth") => {
+    currentIndex = Math.min(Math.max(0, index), cards.length - 1);
+    const target = cards[currentIndex];
+    viewport.scrollTo({ left: target.offsetLeft - track.offsetLeft, behavior });
+    updateControls();
+  };
+
+  toggle.addEventListener("click", () => {
+    const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!isExpanded));
+    toggle.querySelector("span").textContent = isExpanded ? showLabel : hideLabel;
+    content.hidden = isExpanded;
+    updateExpandableSectionGroup(section, !isExpanded);
+    if (!isExpanded) requestAnimationFrame(() => {
+      scrollToCard(currentIndex, "auto");
+      resizeVisualCharts();
+    });
+  });
+
+  previous.addEventListener("click", () => scrollToCard(currentIndex - 1));
+  next.addEventListener("click", () => scrollToCard(currentIndex + 1));
+  viewport.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") scrollToCard(currentIndex - 1);
+    if (event.key === "ArrowRight") scrollToCard(currentIndex + 1);
+  });
+
+  let scrollFrame;
+  viewport.addEventListener("scroll", () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+      const left = viewport.scrollLeft;
+      currentIndex = cards.reduce((closestIndex, card, index) => {
+        const cardLeft = card.offsetLeft - track.offsetLeft;
+        const closestLeft = cards[closestIndex].offsetLeft - track.offsetLeft;
+        return Math.abs(cardLeft - left) < Math.abs(closestLeft - left) ? index : closestIndex;
+      }, 0);
+      updateControls();
+    });
+  }, { passive: true });
+
+  cards.forEach((card, index) => {
+    const title = card.querySelector("h3").textContent;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Open ${title} expanded view`);
+    card.setAttribute("aria-posinset", String(index + 1));
+    card.setAttribute("aria-setsize", String(cards.length));
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("canvas")) return;
+      openVisualizationDetail(card);
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openVisualizationDetail(card);
+    });
+  });
+
+  updateControls();
+}
+
 function renderApplicationInsights() {
   const applications = state.applications;
   const active = applications.filter(isActiveApplication);
@@ -1144,10 +1354,12 @@ function openKpiDrilldown(key) {
       createCell(application.role),
       createCell(application.status),
       createCell(displayValue(application.interviewStage)),
-      createCell(formatDate(application), "date-cell")
+      createCell(formatDate(application), "date-cell"),
+      createEmailLinkCell(application.latestEmailLink)
     );
     body.append(row);
   });
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
 
   document.querySelector("#kpiDialogTitle").textContent = titles[key] || "Applications";
   document.querySelector("#kpiDialogSummary").textContent = `${applications.length} application${applications.length === 1 ? "" : "s"}`;
@@ -1174,7 +1386,8 @@ function applyFilters() {
       application.location,
       application.source,
       application.nextAction,
-      application.notes
+      application.notes,
+      application.latestEmailLink
     ].join(" ").toLowerCase();
     const matchesQuery = !query || searchableText.includes(query);
     const matchesStatus = !selectedStatus || application.status === selectedStatus;
@@ -1304,6 +1517,20 @@ document.querySelector("#insightDetailDialog").addEventListener("keydown", (even
   event.preventDefault();
   event.currentTarget.close();
 });
+document.querySelector("#closeVisualizationDialog").addEventListener("click", closeVisualizationDetail);
+document.querySelector("#visualizationDetailDialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeVisualizationDetail();
+});
+document.querySelector("#visualizationDetailDialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeVisualizationDetail();
+});
+document.querySelector("#visualizationDetailDialog").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeVisualizationDetail();
+});
+document.querySelector("#visualizationDetailDialog").addEventListener("close", restoreVisualizationCard);
 
 async function loadDashboardData() {
   try {
@@ -1328,5 +1555,33 @@ async function loadDashboardData() {
 
 window.addEventListener("DOMContentLoaded", () => {
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  initializeExpandableSectionCards();
+  initializeSectionDisclosure({
+    toggleId: "toggleJobPortals",
+    contentId: "jobPortalsContent",
+    showLabel: "Show portals",
+    hideLabel: "Hide portals"
+  });
+  initializeApplicationInsightsDisclosure();
+  initializeVisualCarousel({
+    toggleId: "togglePipelineAnalytics",
+    contentId: "pipelineAnalyticsContent",
+    viewportId: "analyticsCarouselViewport",
+    previousId: "previousAnalytics",
+    nextId: "nextAnalytics",
+    positionId: "analyticsPosition",
+    showLabel: "Show analytics",
+    hideLabel: "Hide analytics"
+  });
+  initializeVisualCarousel({
+    toggleId: "togglePipelineInsights",
+    contentId: "pipelineInsightsContent",
+    viewportId: "pipelineInsightsCarouselViewport",
+    previousId: "previousPipelineInsight",
+    nextId: "nextPipelineInsight",
+    positionId: "pipelineInsightPosition",
+    showLabel: "Show insights",
+    hideLabel: "Hide insights"
+  });
   loadDashboardData();
 });

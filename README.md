@@ -25,6 +25,7 @@ The current tracker columns are:
 - `Portal / Source`
 - `Action Required / Next Steps`
 - `Notes / Verification Evidence`
+- `Latest Email Link`
 
 ## Dashboard views
 
@@ -40,7 +41,7 @@ The current tracker columns are:
 - Rolling weekly cadence compared with the prior seven days and a configurable application goal
 - Search, status, role concentration, and exact-role filters
 - Searchable multi-select slicers on every dataset column
-- Complete 15-column dataset table with 10-row pagination
+- Complete 16-column dataset table with secure latest-email links and 10-row pagination
 
 Missing data is reported explicitly. For example, referral lift is shown as `N/A` until at least one referred application exists, and the compensation view remains empty while salary bands are blank or `N/A`.
 
