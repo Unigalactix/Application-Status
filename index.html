@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A private-by-design dashboard for tracking job applications and pipeline progress.">
+  <title>Application Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><i data-lucide="briefcase-business"></i></div>
+        <div>
+          <p class="eyebrow">Career pipeline</p>
+          <h1>Application Tracker</h1>
+        </div>
+      </div>
+      <div class="sync-state" title="Data freshness">
+        <span class="sync-dot" aria-hidden="true"></span>
+        <span id="syncLabel">Loading data...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary-band" aria-labelledby="summaryHeading">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">At a glance</p>
+            <h2 id="summaryHeading">Pipeline summary</h2>
+          </div>
+          <p id="resultSummary" class="result-summary" aria-live="polite">Preparing your pipeline</p>
+        </div>
+
+        <div class="metrics-grid">
+          <article class="metric metric-total">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="files"></i></span>
+            <p>Total applications</p>
+            <strong id="totalMetric">0</strong>
+            <span id="monthMetric">0 this month</span>
+          </article>
+          <article class="metric metric-active">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="activity"></i></span>
+            <p>Active pipeline</p>
+            <strong id="activeMetric">0</strong>
+            <span>Open opportunities</span>
+          </article>
+          <article class="metric metric-interview">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="messages-square"></i></span>
+            <p>Interviews</p>
+            <strong id="interviewMetric">0</strong>
+            <span>Interview-stage roles</span>
+          </article>
+          <article class="metric metric-offer">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="trophy"></i></span>
+            <p>Offers</p>
+            <strong id="offerMetric">0</strong>
+            <span>Successful outcomes</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="analytics-section" aria-labelledby="analyticsHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Distribution</p>
+            <h2 id="analyticsHeading">Pipeline analytics</h2>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Applications by status</h3>
+                <p>Current position across the pipeline</p>
+              </div>
+              <i data-lucide="pie-chart" aria-hidden="true"></i>
+            </div>
+            <div class="chart-frame"><canvas id="statusChart"></canvas></div>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Top companies</h3>
+                <p>Organizations with the most applications</p>
+              </div>
+              <i data-lucide="building-2" aria-hidden="true"></i>
+            </div>
+            <div class="chart-frame"><canvas id="companyChart"></canvas></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="applications-section" aria-labelledby="applicationsHeading">
+      <div class="shell">
+        <div class="section-heading applications-heading">
+          <div>
+            <p class="eyebrow">Detailed view</p>
+            <h2 id="applicationsHeading">Applications</h2>
+          </div>
+          <div class="filters" role="search">
+            <label class="search-control">
+              <i data-lucide="search" aria-hidden="true"></i>
+              <span class="sr-only">Search applications</span>
+              <input id="searchInput" type="search" placeholder="Search applications" autocomplete="off">
+            </label>
+            <label class="select-control">
+              <span class="sr-only">Filter by status</span>
+              <select id="statusFilter">
+                <option value="">All statuses</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </label>
+          </div>
+        </div>
+
+        <div id="loadMessage" class="load-message" hidden role="status"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Company / Source</th>
+                <th scope="col">Role / Application ID</th>
+                <th scope="col">Status / Last update</th>
+                <th scope="col">Location / Work mode</th>
+                <th scope="col">Applied</th>
+                <th scope="col">Next step / Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="applicationsBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state" hidden>
+          <i data-lucide="inbox" aria-hidden="true"></i>
+          <h3>No applications found</h3>
+          <p id="emptyStateText">Your synced applications will appear here.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-inner">
+      <span>Application Tracker</span>
+      <span>Loads live from the published Google Sheet</span>
+    </div>
+  </footer>
+</body>
+</html>
