@@ -216,6 +216,86 @@
       </div>
     </section>
 
+    <section class="intelligence-section" aria-labelledby="intelligenceHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Decision support</p>
+            <h2 id="intelligenceHeading">Application insights</h2>
+          </div>
+          <div class="insight-carousel-controls" aria-label="Application insight navigation">
+            <button id="previousInsights" type="button" title="Previous insights" aria-label="Previous insights">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+            </button>
+            <span id="insightPosition" aria-live="polite">1-2 of 8</span>
+            <button id="nextInsights" type="button" title="Next insights" aria-label="Next insights">
+              <i data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <div id="insightCarouselViewport" class="insight-carousel-viewport" tabindex="0" aria-label="Application insight cards">
+          <div class="intelligence-grid">
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Pipeline health</h3><p>Active, stale, and waiting applications</p></div>
+              <i data-lucide="heart-pulse" aria-hidden="true"></i>
+            </div>
+            <div id="pipelineHealthInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Response & interview rates</h3><p>Conversion across the complete portfolio</p></div>
+              <i data-lucide="messages-square" aria-hidden="true"></i>
+            </div>
+            <div id="responseInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Application aging</h3><p>Time since the latest recorded activity</p></div>
+              <i data-lucide="hourglass" aria-hidden="true"></i>
+            </div>
+            <div id="agingInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Source effectiveness</h3><p>Volume and interview conversion by portal</p></div>
+              <i data-lucide="radio-tower" aria-hidden="true"></i>
+            </div>
+            <div id="sourceInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Company insights</h3><p>Pipeline concentration and outcomes</p></div>
+              <i data-lucide="building-2" aria-hidden="true"></i>
+            </div>
+            <div id="companyInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Role insights</h3><p>Targeting patterns and conversion</p></div>
+              <i data-lucide="briefcase-business" aria-hidden="true"></i>
+            </div>
+            <div id="roleInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel action-panel">
+            <div class="panel-heading">
+              <div><h3>Action center</h3><p>Records that need attention or enrichment</p></div>
+              <i data-lucide="list-checks" aria-hidden="true"></i>
+            </div>
+            <div id="actionInsight" class="insight-content"></div>
+          </article>
+          <article class="insight-panel">
+            <div class="panel-heading">
+              <div><h3>Weekly cadence</h3><p>This week compared with the prior week</p></div>
+              <i data-lucide="calendar-clock" aria-hidden="true"></i>
+            </div>
+            <div id="weeklyInsight" class="insight-content"></div>
+          </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="compensation-section" aria-labelledby="compensationHeading">
       <div class="shell">
         <div class="section-heading compact-heading">
@@ -290,21 +370,21 @@
           <table>
             <thead>
               <tr>
-                <th scope="col">Company</th>
-                <th scope="col">Role / Title</th>
-                <th scope="col">Application ID</th>
-                <th scope="col">Current Status</th>
-                <th scope="col">Application Date</th>
-                <th scope="col">Last Status Update</th>
-                <th scope="col">Recruiter / Point of Contact</th>
-                <th scope="col">Resume Version</th>
-                <th scope="col">Interview Stage</th>
-                <th scope="col">Salary Band</th>
-                <th scope="col">Referral</th>
-                <th scope="col">Location / Work Mode</th>
-                <th scope="col">Portal / Source</th>
-                <th scope="col">Action Required / Next Steps</th>
-                <th scope="col">Notes / Verification Evidence</th>
+                <th scope="col" data-filter-key="company">Company</th>
+                <th scope="col" data-filter-key="role">Role / Title</th>
+                <th scope="col" data-filter-key="applicationId">Application ID</th>
+                <th scope="col" data-filter-key="status">Current Status</th>
+                <th scope="col" data-filter-key="date">Application Date</th>
+                <th scope="col" data-filter-key="lastUpdate">Last Status Update</th>
+                <th scope="col" data-filter-key="recruiter">Recruiter / Point of Contact</th>
+                <th scope="col" data-filter-key="resumeVersion">Resume Version</th>
+                <th scope="col" data-filter-key="interviewStage">Interview Stage</th>
+                <th scope="col" data-filter-key="salaryBand">Salary Band</th>
+                <th scope="col" data-filter-key="referral">Referral</th>
+                <th scope="col" data-filter-key="location">Location / Work Mode</th>
+                <th scope="col" data-filter-key="source">Portal / Source</th>
+                <th scope="col" data-filter-key="nextAction">Action Required / Next Steps</th>
+                <th scope="col" data-filter-key="notes">Notes / Verification Evidence</th>
               </tr>
             </thead>
             <tbody id="applicationsBody"></tbody>
@@ -362,9 +442,52 @@
     </div>
   </dialog>
 
+  <dialog id="insightDetailDialog" class="kpi-dialog insight-detail-dialog" aria-labelledby="insightDialogTitle">
+    <div class="kpi-dialog-header">
+      <div>
+        <p class="eyebrow">Application insight</p>
+        <h2 id="insightDialogTitle">Insight details</h2>
+        <p id="insightDialogSummary" class="result-summary"></p>
+      </div>
+      <button id="closeInsightDialog" class="dialog-close" type="button" title="Close" aria-label="Close insight details">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div id="insightDialogBody" class="insight-dialog-body"></div>
+  </dialog>
+
+  <div id="columnFilterMenu" class="column-filter-menu" role="dialog" aria-labelledby="columnFilterTitle" hidden>
+    <div class="column-filter-heading">
+      <div>
+        <span>Filter column</span>
+        <strong id="columnFilterTitle">Column</strong>
+      </div>
+      <button id="closeColumnFilter" type="button" title="Close filter" aria-label="Close column filter">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <label class="column-filter-search">
+      <i data-lucide="search" aria-hidden="true"></i>
+      <span class="sr-only">Search column values</span>
+      <input id="columnFilterSearch" type="search" placeholder="Search values" autocomplete="off">
+    </label>
+    <div class="column-filter-actions">
+      <button id="selectAllColumnValues" type="button">Select all</button>
+      <button id="clearColumnValues" type="button">Select none</button>
+    </div>
+    <div id="columnFilterOptions" class="column-filter-options"></div>
+    <div class="column-filter-footer">
+      <span id="columnFilterSelection">All values selected</span>
+      <button id="applyColumnFilter" type="button">Apply</button>
+    </div>
+  </div>
+
   <footer>
     <div class="shell footer-inner">
-      <span>Application Tracker</span>
+      <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vR2WFqLSxLSHAZm4yS3UaPfGVFdYuyJJoB3Xra0leap4-mOcWG8_GQ-IUihR_OgbzAfi4YYdkAaMl4_/pubhtml?gid=1438332888&amp;single=true" target="_blank" rel="noopener noreferrer" title="Open published Google Sheet">
+        Application Tracker
+        <i data-lucide="external-link" aria-hidden="true"></i>
+      </a>
       <span>Loads live from the published Google Sheet</span>
     </div>
   </footer>

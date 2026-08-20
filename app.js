@@ -22,6 +22,7 @@ const DATA_SOURCE = {
 };
 
 const PAGE_SIZE = 10;
+const WEEKLY_APPLICATION_GOAL = 10;
 
 const state = {
   applications: [],
@@ -30,7 +31,12 @@ const state = {
   referralChart: null,
   drilldown: null,
   currentPage: 1,
-  filteredApplications: []
+  filteredApplications: [],
+  columnFilters: new Map(),
+  activeColumnFilter: null,
+  activeColumnValues: [],
+  pendingColumnValues: new Set(),
+  insightStartIndex: 0
 };
 
 const elements = {
@@ -218,6 +224,143 @@ function displayValue(value) {
   return value || "Not provided";
 }
 
+function columnFilterValue(application, key) {
+  if (key === "date") return formatDate(application);
+  if (key === "lastUpdate") {
+    return application.rawLastUpdate
+      ? formatDate({ parsedDate: application.parsedLastUpdate, rawDate: application.rawLastUpdate })
+      : "Not provided";
+  }
+  return displayValue(application[key]);
+}
+
+function updateColumnFilterSelection() {
+  const selectedCount = state.pendingColumnValues.size;
+  const totalCount = state.activeColumnValues.length;
+  document.querySelector("#columnFilterSelection").textContent = selectedCount === totalCount
+    ? "All values selected"
+    : `${selectedCount} of ${totalCount} selected`;
+}
+
+function renderColumnFilterOptions() {
+  const query = document.querySelector("#columnFilterSearch").value.trim().toLowerCase();
+  const values = state.activeColumnValues.filter((value) => value.toLowerCase().includes(query));
+  const options = document.querySelector("#columnFilterOptions");
+  options.replaceChildren();
+
+  values.forEach((value) => {
+    const label = document.createElement("label");
+    label.className = "column-filter-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.pendingColumnValues.has(value);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) state.pendingColumnValues.add(value);
+      else state.pendingColumnValues.delete(value);
+      updateColumnFilterSelection();
+    });
+    const text = document.createElement("span");
+    text.textContent = value;
+    label.append(checkbox, text);
+    options.append(label);
+  });
+
+  if (!values.length) {
+    const empty = document.createElement("p");
+    empty.className = "column-filter-empty";
+    empty.textContent = "No matching values";
+    options.append(empty);
+  }
+  updateColumnFilterSelection();
+}
+
+function closeColumnFilterMenu() {
+  const menu = document.querySelector("#columnFilterMenu");
+  menu.hidden = true;
+  document.querySelectorAll(".column-filter-button[aria-expanded='true']")
+    .forEach((button) => button.setAttribute("aria-expanded", "false"));
+  state.activeColumnFilter = null;
+}
+
+function positionColumnFilterMenu(button) {
+  const menu = document.querySelector("#columnFilterMenu");
+  const buttonRect = button.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(8, buttonRect.right - menuRect.width),
+    window.innerWidth - menuRect.width - 8
+  );
+  const below = buttonRect.bottom + 6;
+  const preferredTop = below + menuRect.height <= window.innerHeight - 8
+    ? below
+    : buttonRect.top - menuRect.height - 6;
+  const top = Math.min(
+    Math.max(8, preferredTop),
+    Math.max(8, window.innerHeight - menuRect.height - 8)
+  );
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function openColumnFilterMenu(button) {
+  const key = button.dataset.filterKey;
+  state.activeColumnFilter = key;
+  state.activeColumnValues = [...new Set(
+    state.applications.map((application) => columnFilterValue(application, key))
+  )].sort((first, second) => first.localeCompare(second, undefined, { numeric: true }));
+  state.pendingColumnValues = state.columnFilters.has(key)
+    ? new Set(state.columnFilters.get(key))
+    : new Set(state.activeColumnValues);
+
+  document.querySelector("#columnFilterTitle").textContent = button.dataset.filterLabel;
+  document.querySelector("#columnFilterSearch").value = "";
+  document.querySelectorAll(".column-filter-button").forEach((filterButton) => {
+    filterButton.setAttribute("aria-expanded", String(filterButton === button));
+  });
+  renderColumnFilterOptions();
+  const menu = document.querySelector("#columnFilterMenu");
+  menu.hidden = false;
+  positionColumnFilterMenu(button);
+  document.querySelector("#columnFilterSearch").focus();
+}
+
+function updateColumnFilterButtons() {
+  document.querySelectorAll(".column-filter-button").forEach((button) => {
+    const isActive = state.columnFilters.has(button.dataset.filterKey);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+    button.title = `${isActive ? "Edit active" : "Filter"} ${button.dataset.filterLabel} filter`;
+  });
+}
+
+function initializeColumnFilters() {
+  document.querySelectorAll("th[data-filter-key]").forEach((header) => {
+    const label = header.textContent.trim();
+    const labelElement = document.createElement("span");
+    labelElement.textContent = label;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "column-filter-button";
+    button.dataset.filterKey = header.dataset.filterKey;
+    button.dataset.filterLabel = label;
+    button.title = `Filter ${label}`;
+    button.setAttribute("aria-label", `Filter ${label}`);
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-pressed", "false");
+    button.innerHTML = '<i data-lucide="list-filter" aria-hidden="true"></i>';
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (state.activeColumnFilter === button.dataset.filterKey) closeColumnFilterMenu();
+      else openColumnFilterMenu(button);
+    });
+    const content = document.createElement("div");
+    content.className = "column-header-content";
+    content.append(labelElement, button);
+    header.replaceChildren(content);
+  });
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+}
+
 function renderTable() {
   const applications = state.filteredApplications;
   const totalPages = Math.max(1, Math.ceil(applications.length / PAGE_SIZE));
@@ -269,7 +412,7 @@ function renderTable() {
 
   elements.body.append(fragment);
   elements.emptyState.hidden = applications.length > 0;
-  document.querySelector(".table-wrap").hidden = applications.length === 0;
+  document.querySelector(".table-wrap").hidden = state.applications.length === 0;
   const pagination = document.querySelector("#pagination");
   pagination.hidden = applications.length === 0;
   document.querySelector("#pageSummary").textContent = applications.length
@@ -430,6 +573,354 @@ function renderCompensation() {
   document.querySelector("#compensationSummary").textContent = applications.length
     ? `${applications.length} active role${applications.length === 1 ? "" : "s"} with salary data`
     : "No salary data for active roles";
+}
+
+function percentage(count, total) {
+  return total ? Math.round((count / total) * 100) : 0;
+}
+
+function daysSince(date, today = new Date()) {
+  if (!date) return null;
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(today);
+  end.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((end - start) / 86400000));
+}
+
+function applicationActivityDate(application) {
+  return application.parsedLastUpdate || application.parsedDate;
+}
+
+function isActiveApplication(application) {
+  return !isClosedStatus(application.status) && !isOfferStatus(application.status);
+}
+
+function hasEmployerResponse(application) {
+  return isInterviewReached(application)
+    || isOfferStatus(application.status)
+    || isClosedStatus(application.status);
+}
+
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((first, second) => first - second);
+  const midpoint = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[midpoint]
+    : Math.round((sorted[midpoint - 1] + sorted[midpoint]) / 2);
+}
+
+function groupApplications(applications, getKey) {
+  const groups = new Map();
+  applications.forEach((application) => {
+    const key = getKey(application) || "Not provided";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(application);
+  });
+  return [...groups].map(([label, group]) => ({
+    label,
+    applications: group,
+    total: group.length,
+    active: group.filter(isActiveApplication).length,
+    interviews: group.filter(isInterviewReached).length,
+    closed: group.filter((application) => isClosedStatus(application.status)).length
+  }));
+}
+
+function roleConcentration(role) {
+  const normalized = role.toLowerCase();
+  if (["ai", "machine learning", "ml", "agentic", "applied scientist", "coreai"]
+    .some((term) => normalized.includes(term))) return "AI / ML";
+  if (["backend", "platform", "cloud", "storage", "infrastructure", "distributed", "core"]
+    .some((term) => normalized.includes(term))) return "Backend / Platform / Cloud";
+  if (["full stack", "full-stack", "frontend", "front end"]
+    .some((term) => normalized.includes(term))) return "Full stack / Frontend";
+  return "General software engineering";
+}
+
+function renderInsightPanel(id, metrics, rows = [], note = "") {
+  const container = document.querySelector(`#${id}`);
+  container.replaceChildren();
+
+  const metricGrid = document.createElement("div");
+  metricGrid.className = "insight-metrics";
+  metrics.forEach(({ value, label, detail }) => {
+    const metric = document.createElement("div");
+    metric.className = "insight-metric";
+    const valueElement = document.createElement("strong");
+    valueElement.textContent = value;
+    const labelElement = document.createElement("span");
+    labelElement.textContent = label;
+    metric.append(valueElement, labelElement);
+    if (detail) {
+      const detailElement = document.createElement("small");
+      detailElement.textContent = detail;
+      metric.append(detailElement);
+    }
+    metricGrid.append(metric);
+  });
+  container.append(metricGrid);
+
+  if (rows.length) {
+    const list = document.createElement("div");
+    list.className = "insight-list";
+    rows.forEach(({ label, value, detail }) => {
+      const row = document.createElement("div");
+      row.className = "insight-row";
+      const text = document.createElement("div");
+      const labelElement = document.createElement("strong");
+      labelElement.textContent = label;
+      text.append(labelElement);
+      if (detail) {
+        const detailElement = document.createElement("span");
+        detailElement.textContent = detail;
+        text.append(detailElement);
+      }
+      const valueElement = document.createElement("b");
+      valueElement.textContent = value;
+      row.append(text, valueElement);
+      list.append(row);
+    });
+    container.append(list);
+  }
+
+  if (note) {
+    const noteElement = document.createElement("p");
+    noteElement.className = "insight-note";
+    noteElement.textContent = note;
+    container.append(noteElement);
+  }
+}
+
+function insightCardsPerView() {
+  return window.matchMedia("(max-width: 700px)").matches ? 1 : 2;
+}
+
+function updateInsightCarouselControls() {
+  const cards = [...document.querySelectorAll(".insight-panel")];
+  const cardsPerView = insightCardsPerView();
+  const maximumStart = Math.max(0, cards.length - cardsPerView);
+  state.insightStartIndex = Math.min(Math.max(0, state.insightStartIndex), maximumStart);
+  const end = Math.min(state.insightStartIndex + cardsPerView, cards.length);
+  document.querySelector("#insightPosition").textContent = `${state.insightStartIndex + 1}-${end} of ${cards.length}`;
+  document.querySelector("#previousInsights").disabled = state.insightStartIndex === 0;
+  document.querySelector("#nextInsights").disabled = state.insightStartIndex === maximumStart;
+}
+
+function scrollToInsight(index, behavior = "smooth") {
+  const viewport = document.querySelector("#insightCarouselViewport");
+  const track = viewport.querySelector(".intelligence-grid");
+  const cards = [...track.querySelectorAll(".insight-panel")];
+  const cardsPerView = insightCardsPerView();
+  state.insightStartIndex = Math.min(Math.max(0, index), Math.max(0, cards.length - cardsPerView));
+  const target = cards[state.insightStartIndex];
+  if (target) {
+    viewport.scrollTo({ left: target.offsetLeft - track.offsetLeft, behavior });
+  }
+  updateInsightCarouselControls();
+}
+
+function openInsightDetail(card) {
+  const title = card.querySelector("h3").textContent;
+  const summary = card.querySelector(".panel-heading p").textContent;
+  const content = card.querySelector(".insight-content").cloneNode(true);
+  content.removeAttribute("id");
+  document.querySelector("#insightDialogTitle").textContent = title;
+  document.querySelector("#insightDialogSummary").textContent = summary;
+  document.querySelector("#insightDialogBody").replaceChildren(content);
+  document.querySelector("#insightDetailDialog").showModal();
+}
+
+function initializeInsightCarousel() {
+  const viewport = document.querySelector("#insightCarouselViewport");
+  if (viewport.dataset.ready === "true") {
+    scrollToInsight(state.insightStartIndex, "auto");
+    return;
+  }
+  viewport.dataset.ready = "true";
+  const cards = [...viewport.querySelectorAll(".insight-panel")];
+  cards.forEach((card, index) => {
+    const title = card.querySelector("h3").textContent;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Open ${title} details`);
+    card.setAttribute("aria-posinset", String(index + 1));
+    card.setAttribute("aria-setsize", String(cards.length));
+    card.addEventListener("click", () => openInsightDetail(card));
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openInsightDetail(card);
+    });
+  });
+
+  document.querySelector("#previousInsights").addEventListener("click", () => {
+    scrollToInsight(state.insightStartIndex - insightCardsPerView());
+  });
+  document.querySelector("#nextInsights").addEventListener("click", () => {
+    scrollToInsight(state.insightStartIndex + insightCardsPerView());
+  });
+  viewport.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") scrollToInsight(state.insightStartIndex - insightCardsPerView());
+    if (event.key === "ArrowRight") scrollToInsight(state.insightStartIndex + insightCardsPerView());
+  });
+
+  let scrollFrame;
+  viewport.addEventListener("scroll", () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+      const track = viewport.querySelector(".intelligence-grid");
+      const left = viewport.scrollLeft;
+      state.insightStartIndex = cards.reduce((closestIndex, card, index) => {
+        const cardLeft = card.offsetLeft - track.offsetLeft;
+        const closestLeft = cards[closestIndex].offsetLeft - track.offsetLeft;
+        return Math.abs(cardLeft - left) < Math.abs(closestLeft - left) ? index : closestIndex;
+      }, 0);
+      updateInsightCarouselControls();
+    });
+  }, { passive: true });
+  window.addEventListener("resize", () => scrollToInsight(state.insightStartIndex, "auto"));
+  scrollToInsight(0, "auto");
+}
+
+function renderApplicationInsights() {
+  const applications = state.applications;
+  const active = applications.filter(isActiveApplication);
+  const responded = applications.filter(hasEmployerResponse);
+  const interviews = applications.filter(isInterviewReached);
+  const activeAges = active
+    .map((application) => daysSince(applicationActivityDate(application)))
+    .filter((days) => days !== null);
+  const stale14 = active.filter((application) =>
+    (daysSince(applicationActivityDate(application)) || 0) > 14
+  );
+  const followUps = active.filter((application) => {
+    const nextAction = application.nextAction.toLowerCase();
+    return ["follow", "contact", "prepare", "schedule", "complete"]
+      .some((term) => nextAction.includes(term));
+  });
+
+  renderInsightPanel("pipelineHealthInsight", [
+    { value: active.length, label: "Active" },
+    { value: stale14.length, label: "Stale 14+ days" },
+    { value: followUps.length, label: "Action indicated" },
+    { value: `${median(activeAges)}d`, label: "Median inactivity" }
+  ], stale14
+    .sort((first, second) => daysSince(applicationActivityDate(second)) - daysSince(applicationActivityDate(first)))
+    .slice(0, 3)
+    .map((application) => ({
+      label: application.company,
+      detail: application.role,
+      value: `${daysSince(applicationActivityDate(application))}d`
+    })), "Stale uses the latest status update, or application date when no update is recorded.");
+
+  renderInsightPanel("responseInsight", [
+    { value: `${percentage(responded.length, applications.length)}%`, label: "Response rate", detail: `${responded.length} of ${applications.length}` },
+    { value: `${percentage(interviews.length, applications.length)}%`, label: "Interview rate", detail: `${interviews.length} reached screening+` },
+    { value: `${percentage(applications.filter((application) => isClosedStatus(application.status)).length, applications.length)}%`, label: "Terminal rate" },
+    { value: `${percentage(applications.filter((application) => isOfferStatus(application.status)).length, applications.length)}%`, label: "Offer rate" }
+  ], [], "Response means screening/interview/offer progress or a terminal employer decision.");
+
+  const agingBuckets = [
+    { label: "0-7 days", minimum: 0, maximum: 7 },
+    { label: "8-14 days", minimum: 8, maximum: 14 },
+    { label: "15-30 days", minimum: 15, maximum: 30 },
+    { label: "30+ days", minimum: 31, maximum: Infinity }
+  ];
+  renderInsightPanel("agingInsight", [
+    { value: `${median(activeAges)}d`, label: "Median inactivity" },
+    { value: `${Math.max(...activeAges, 0)}d`, label: "Oldest inactivity" }
+  ], agingBuckets.map((bucket) => {
+    const count = activeAges.filter((days) => days >= bucket.minimum && days <= bucket.maximum).length;
+    return {
+      label: bucket.label,
+      detail: `${percentage(count, active.length)}% of active pipeline`,
+      value: count
+    };
+  }), "Aging measures inactivity, not total time spent in each stage.");
+
+  const allSourceGroups = groupApplications(applications, (application) => displayValue(application.source))
+    .sort((first, second) => second.total - first.total);
+  const sourceGroups = allSourceGroups.slice(0, 5);
+  renderInsightPanel("sourceInsight", [
+    { value: allSourceGroups.length, label: "Sources" },
+    { value: sourceGroups[0]?.label || "N/A", label: "Highest volume" }
+  ], sourceGroups.map((group) => ({
+    label: group.label,
+    detail: `${group.interviews} interview-stage application${group.interviews === 1 ? "" : "s"}`,
+    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
+  })), "Rows show application volume followed by interview conversion.");
+
+  const companyGroups = groupApplications(applications, (application) => application.company)
+    .sort((first, second) => second.total - first.total)
+    .slice(0, 5);
+  const topCompany = companyGroups[0];
+  renderInsightPanel("companyInsight", [
+    { value: new Set(applications.map((application) => application.company)).size, label: "Companies" },
+    { value: `${percentage(topCompany?.total || 0, applications.length)}%`, label: "Top-company share", detail: topCompany?.label || "N/A" }
+  ], companyGroups.map((group) => ({
+    label: group.label,
+    detail: `${group.active} active · ${group.closed} terminal`,
+    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
+  })), topCompany && percentage(topCompany.total, applications.length) >= 40
+    ? `${topCompany.label} represents a high concentration of the current portfolio.`
+    : "No single company exceeds 40% of the current portfolio.");
+
+  const roleGroups = groupApplications(applications, (application) => roleConcentration(application.role))
+    .sort((first, second) => second.total - first.total);
+  const noResponseRoles = applications.filter((application) => !hasEmployerResponse(application)).length;
+  renderInsightPanel("roleInsight", [
+    { value: new Set(applications.map((application) => application.role)).size, label: "Exact roles" },
+    { value: noResponseRoles, label: "Awaiting response" }
+  ], roleGroups.map((group) => ({
+    label: group.label,
+    detail: `${group.interviews} reached screening+`,
+    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
+  })), hasMeaningfulValue(applications.find((application) => application.resumeVersion)?.resumeVersion || "")
+    ? "Resume-version effectiveness can be compared as data accumulates."
+    : "Resume effectiveness is unavailable until Resume Version is populated.");
+
+  const missingRecruiter = applications.filter((application) => !hasMeaningfulValue(application.recruiter)).length;
+  const missingResume = applications.filter((application) => !hasMeaningfulValue(application.resumeVersion)).length;
+  const missingSalary = active.filter((application) => !hasMeaningfulValue(application.salaryBand)).length;
+  const noReferral = applications.filter((application) => !hasReferral(application.referral)).length;
+  renderInsightPanel("actionInsight", [
+    { value: stale14.length, label: "Follow up: 14+ days" },
+    { value: followUps.length, label: "Explicit next actions" }
+  ], [
+    { label: "Missing recruiter contact", value: missingRecruiter, detail: "All applications" },
+    { label: "Missing resume version", value: missingResume, detail: "Needed for resume analysis" },
+    { label: "Missing active salary band", value: missingSalary, detail: "Active applications only" },
+    { label: "No referral recorded", value: noReferral, detail: "Referral cohort unavailable" }
+  ], "Prioritize stale active records, then enrich fields needed for outcome analysis.");
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const currentWeekStart = new Date(today);
+  currentWeekStart.setDate(today.getDate() - 6);
+  currentWeekStart.setHours(0, 0, 0, 0);
+  const priorWeekStart = new Date(currentWeekStart);
+  priorWeekStart.setDate(currentWeekStart.getDate() - 7);
+  const priorWeekEnd = new Date(currentWeekStart);
+  priorWeekEnd.setMilliseconds(-1);
+  const inRange = (date, start, end) => date && date >= start && date <= end;
+  const thisWeek = applications.filter((application) => inRange(application.parsedDate, currentWeekStart, today));
+  const priorWeek = applications.filter((application) => inRange(application.parsedDate, priorWeekStart, priorWeekEnd));
+  const closuresThisWeek = applications.filter((application) =>
+    isClosedStatus(application.status) && inRange(application.parsedLastUpdate, currentWeekStart, today)
+  );
+  const weeklyDelta = thisWeek.length - priorWeek.length;
+  renderInsightPanel("weeklyInsight", [
+    { value: thisWeek.length, label: "Applied this week", detail: `${weeklyDelta >= 0 ? "+" : ""}${weeklyDelta} vs prior week` },
+    { value: priorWeek.length, label: "Prior week" },
+    { value: thisWeek.filter(isInterviewReached).length, label: "New apps at screening+" },
+    { value: closuresThisWeek.length, label: "Closures recorded" }
+  ], [{
+    label: "Weekly application goal",
+    detail: `Default target: ${WEEKLY_APPLICATION_GOAL}`,
+    value: `${percentage(thisWeek.length, WEEKLY_APPLICATION_GOAL)}%`
+  }], "Weekly windows are rolling seven-day periods ending today. The goal is configurable in app.js.");
 }
 
 function renderCharts() {
@@ -689,7 +1180,10 @@ function applyFilters() {
     const matchesStatus = !selectedStatus || application.status === selectedStatus;
     const matchesRole = matchesRoleFilter(application, selectedRole);
     const matchesDrilldown = !state.drilldown || state.drilldown.predicate(application);
-    return matchesQuery && matchesStatus && matchesRole && matchesDrilldown;
+    const matchesColumnFilters = [...state.columnFilters].every(([key, selectedValues]) =>
+      selectedValues.has(columnFilterValue(application, key))
+    );
+    return matchesQuery && matchesStatus && matchesRole && matchesDrilldown && matchesColumnFilters;
   });
 
   elements.emptyStateText.textContent = state.applications.length
@@ -703,8 +1197,11 @@ function initializeDashboard(rows, sourceLabel) {
   state.applications = normalizeRows(rows);
   populateStatusFilter();
   populateRoleFilter();
+  initializeColumnFilters();
   renderMetrics();
   renderCharts();
+  renderApplicationInsights();
+  initializeInsightCarousel();
   applyFilters();
 
   const today = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date());
@@ -728,6 +1225,39 @@ function resetPageAndFilter() {
 elements.searchInput.addEventListener("input", resetPageAndFilter);
 elements.statusFilter.addEventListener("change", resetPageAndFilter);
 elements.roleFilter.addEventListener("change", resetPageAndFilter);
+document.querySelector("#columnFilterSearch").addEventListener("input", renderColumnFilterOptions);
+document.querySelector("#selectAllColumnValues").addEventListener("click", () => {
+  state.pendingColumnValues = new Set(state.activeColumnValues);
+  renderColumnFilterOptions();
+});
+document.querySelector("#clearColumnValues").addEventListener("click", () => {
+  state.pendingColumnValues.clear();
+  renderColumnFilterOptions();
+});
+document.querySelector("#applyColumnFilter").addEventListener("click", () => {
+  const key = state.activeColumnFilter;
+  if (!key) return;
+  if (state.pendingColumnValues.size === state.activeColumnValues.length) {
+    state.columnFilters.delete(key);
+  } else {
+    state.columnFilters.set(key, new Set(state.pendingColumnValues));
+  }
+  updateColumnFilterButtons();
+  closeColumnFilterMenu();
+  resetPageAndFilter();
+});
+document.querySelector("#closeColumnFilter").addEventListener("click", closeColumnFilterMenu);
+document.addEventListener("click", (event) => {
+  const menu = document.querySelector("#columnFilterMenu");
+  if (!menu.hidden && !menu.contains(event.target)) closeColumnFilterMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !document.querySelector("#columnFilterMenu").hidden) {
+    closeColumnFilterMenu();
+  }
+});
+document.querySelector(".table-wrap").addEventListener("scroll", closeColumnFilterMenu);
+window.addEventListener("resize", closeColumnFilterMenu);
 document.querySelector("#previousPage").addEventListener("click", () => {
   if (state.currentPage === 1) return;
   state.currentPage -= 1;
@@ -755,6 +1285,21 @@ document.querySelector("#kpiDrilldownDialog").addEventListener("cancel", (event)
   event.currentTarget.close();
 });
 document.querySelector("#kpiDrilldownDialog").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  event.currentTarget.close();
+});
+document.querySelector("#closeInsightDialog").addEventListener("click", () => {
+  document.querySelector("#insightDetailDialog").close();
+});
+document.querySelector("#insightDetailDialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+document.querySelector("#insightDetailDialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  event.currentTarget.close();
+});
+document.querySelector("#insightDetailDialog").addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   event.preventDefault();
   event.currentTarget.close();

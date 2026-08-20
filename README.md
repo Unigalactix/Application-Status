@@ -33,10 +33,24 @@ The current tracker columns are:
 - Interview-stage funnel with terminal outcomes reported separately
 - Referral cohort sizes, interview rates, and referral lift when both cohorts exist
 - Compensation details for active roles with meaningful salary bands
+- Pipeline health, stale-record detection, inactivity aging, and follow-up priorities
+- Employer response and interview conversion across the complete portfolio
+- Source, company, and role concentration rankings with interview conversion
+- Action Center checks for overdue applications and missing analysis fields
+- Rolling weekly cadence compared with the prior seven days and a configurable application goal
 - Search, status, role concentration, and exact-role filters
+- Searchable multi-select slicers on every dataset column
 - Complete 15-column dataset table with 10-row pagination
 
 Missing data is reported explicitly. For example, referral lift is shown as `N/A` until at least one referred application exists, and the compensation view remains empty while salary bands are blank or `N/A`.
+
+Insight definitions:
+
+- An employer response means screening/interview/offer progress or a terminal employer decision.
+- Inactivity uses `Last Status Update`, falling back to `Application Date` when needed.
+- Stale applications are active records with more than 14 days of inactivity.
+- Weekly cadence uses rolling seven-day windows ending today. The default application goal is configured by `WEEKLY_APPLICATION_GOAL` in `app.js`.
+- Stage-duration, resume-effectiveness, referral-lift, and compensation comparisons remain unavailable until their source columns contain meaningful data.
 
 ## Preview locally
 
