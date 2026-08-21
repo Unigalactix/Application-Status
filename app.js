@@ -19,7 +19,7 @@ const COLUMN_ALIASES = {
 
 const DATA_SOURCE = {
   label: "Live sheet",
-  url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2WFqLSxLSHAZm4yS3UaPfGVFdYuyJJoB3Xra0leap4-mOcWG8_GQ-IUihR_OgbzAfi4YYdkAaMl4_/pub?gid=1438332888&single=true&output=csv"
+  url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfFCkkC85sZ8yNJKLp9A7hqnzoaHT7aOVtRQgnWvNp9-0VVUyS_98k7h85oyB_m2lbD-V4J4LUaaPC/pub?output=csv"
 };
 
 const PAGE_SIZE = 10;

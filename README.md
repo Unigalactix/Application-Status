@@ -4,7 +4,7 @@ A static, responsive dashboard that loads the latest job application data direct
 
 ## Data source
 
-The live CSV is configured in `app.js` with the published URL for sheet tab `1438332888`. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
+The live CSV is configured in `app.js` with the published Google Sheets URL. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
 
 The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. The age is an estimate because the published CSV does not provide its own refresh timestamp.
 
