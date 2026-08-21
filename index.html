@@ -25,9 +25,12 @@
           <h1>Application Tracker</h1>
         </div>
       </div>
-      <div class="sync-state" title="Data freshness">
+      <div class="sync-state" title="Estimated from scheduled updates at 8:00 AM and 8:00 PM local time">
         <span class="sync-dot" aria-hidden="true"></span>
-        <span id="syncLabel">Loading data...</span>
+        <span class="sync-copy">
+          <span id="syncLabel">Loading data...</span>
+          <span id="syncCountdown">Calculating next update...</span>
+        </span>
       </div>
     </div>
   </header>
@@ -80,7 +83,7 @@
             <p class="eyebrow">Quick access</p>
             <h2 id="portalsHeading">Job portals</h2>
           </div>
-          <button id="toggleJobPortals" class="section-toggle" type="button" aria-expanded="false" aria-controls="jobPortalsContent">
+          <button id="toggleJobPortals" class="section-toggle" type="button" aria-label="Collapse Job portals" aria-expanded="false" aria-controls="jobPortalsContent">
             <span>Show portals</span>
             <i data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
@@ -157,7 +160,7 @@
             <p class="eyebrow">Distribution</p>
             <h2 id="analyticsHeading">Pipeline analytics</h2>
           </div>
-          <button id="togglePipelineAnalytics" class="section-toggle" type="button" aria-expanded="false" aria-controls="pipelineAnalyticsContent">
+          <button id="togglePipelineAnalytics" class="section-toggle" type="button" aria-label="Collapse Pipeline analytics" aria-expanded="false" aria-controls="pipelineAnalyticsContent">
             <span>Show analytics</span>
             <i data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
@@ -207,7 +210,7 @@
             <p class="eyebrow">Conversion signals</p>
             <h2 id="insightsHeading">Pipeline insights</h2>
           </div>
-          <button id="togglePipelineInsights" class="section-toggle" type="button" aria-expanded="false" aria-controls="pipelineInsightsContent">
+          <button id="togglePipelineInsights" class="section-toggle" type="button" aria-label="Collapse Pipeline insights" aria-expanded="false" aria-controls="pipelineInsightsContent">
             <span>Show insights</span>
             <i data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
@@ -263,7 +266,7 @@
             <p class="eyebrow">Decision support</p>
             <h2 id="intelligenceHeading">Application insights</h2>
           </div>
-          <button id="toggleApplicationInsights" class="section-toggle" type="button" aria-expanded="false" aria-controls="applicationInsightsContent">
+          <button id="toggleApplicationInsights" class="section-toggle" type="button" aria-label="Collapse Application insights" aria-expanded="false" aria-controls="applicationInsightsContent">
             <span>Show insights</span>
             <i data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
@@ -343,35 +346,6 @@
     </section>
 
     </div>
-
-    <section class="compensation-section" aria-labelledby="compensationHeading">
-      <div class="shell">
-        <div class="section-heading compact-heading">
-          <div>
-            <p class="eyebrow">Active opportunities</p>
-            <h2 id="compensationHeading">Compensation overview</h2>
-          </div>
-          <p id="compensationSummary" class="result-summary">Preparing salary data</p>
-        </div>
-        <div class="compensation-wrap">
-          <table class="compensation-table">
-            <thead>
-              <tr>
-                <th scope="col">Company</th>
-                <th scope="col">Role</th>
-                <th scope="col">Salary band</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody id="compensationBody"></tbody>
-          </table>
-          <div id="compensationEmpty" class="inline-empty" hidden>
-            <i data-lucide="badge-dollar-sign" aria-hidden="true"></i>
-            <div><strong>No salary bands recorded</strong><span>Active roles will appear here when Salary Band values are added.</span></div>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <section class="applications-section" aria-labelledby="applicationsHeading">
       <div class="shell">
@@ -471,6 +445,32 @@
         <i data-lucide="x" aria-hidden="true"></i>
       </button>
     </div>
+    <section id="offerCompensation" class="offer-compensation" aria-labelledby="compensationHeading" hidden>
+      <div class="offer-compensation-heading">
+        <div>
+          <p class="eyebrow">Offer details</p>
+          <h3 id="compensationHeading">Compensation overview</h3>
+        </div>
+        <p id="compensationSummary" class="result-summary"></p>
+      </div>
+      <div class="compensation-wrap">
+        <table class="compensation-table">
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Role</th>
+              <th scope="col">Salary band</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="compensationBody"></tbody>
+        </table>
+        <div id="compensationEmpty" class="inline-empty" hidden>
+          <i data-lucide="badge-dollar-sign" aria-hidden="true"></i>
+          <div><strong>No salary bands recorded</strong><span>Offer compensation will appear here when Salary Band values are added.</span></div>
+        </div>
+      </div>
+    </section>
     <div id="kpiDialogTableWrap" class="kpi-dialog-table-wrap">
       <table class="kpi-dialog-table">
         <thead>

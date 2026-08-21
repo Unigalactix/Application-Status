@@ -24,6 +24,7 @@ const DATA_SOURCE = {
 
 const PAGE_SIZE = 10;
 const WEEKLY_APPLICATION_GOAL = 10;
+const SCHEDULED_UPDATE_HOURS = [8, 20];
 
 const state = {
   applications: [],
@@ -37,7 +38,8 @@ const state = {
   activeColumnFilter: null,
   activeColumnValues: [],
   pendingColumnValues: new Set(),
-  insightStartIndex: 0
+  insightStartIndex: 0,
+  dataLoadStatus: "loading"
 };
 
 const elements = {
@@ -53,12 +55,67 @@ const elements = {
   clearDrilldown: document.querySelector("#clearDrilldown"),
   resultSummary: document.querySelector("#resultSummary"),
   syncLabel: document.querySelector("#syncLabel"),
+  syncCountdown: document.querySelector("#syncCountdown"),
   totalMetric: document.querySelector("#totalMetric"),
   monthMetric: document.querySelector("#monthMetric"),
   activeMetric: document.querySelector("#activeMetric"),
   interviewMetric: document.querySelector("#interviewMetric"),
   offerMetric: document.querySelector("#offerMetric")
 };
+
+function scheduledUpdateWindow(now = new Date()) {
+  const todayAt = (hour) => {
+    const date = new Date(now);
+    date.setHours(hour, 0, 0, 0);
+    return date;
+  };
+  const morningUpdate = todayAt(SCHEDULED_UPDATE_HOURS[0]);
+  const eveningUpdate = todayAt(SCHEDULED_UPDATE_HOURS[1]);
+
+  if (now >= eveningUpdate) {
+    const nextUpdate = new Date(morningUpdate);
+    nextUpdate.setDate(nextUpdate.getDate() + 1);
+    return { previousUpdate: eveningUpdate, nextUpdate };
+  }
+  if (now >= morningUpdate) {
+    return { previousUpdate: morningUpdate, nextUpdate: eveningUpdate };
+  }
+
+  const previousUpdate = new Date(eveningUpdate);
+  previousUpdate.setDate(previousUpdate.getDate() - 1);
+  return { previousUpdate, nextUpdate: morningUpdate };
+}
+
+function formatDataAge(milliseconds) {
+  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+
+function formatCountdown(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function updateDataFreshness(now = new Date()) {
+  const { previousUpdate, nextUpdate } = scheduledUpdateWindow(now);
+  if (state.dataLoadStatus === "loaded") {
+    elements.syncLabel.textContent = `Data age: ~${formatDataAge(now - previousUpdate)}`;
+  } else if (state.dataLoadStatus === "unavailable") {
+    elements.syncLabel.textContent = "Data unavailable";
+  }
+  elements.syncCountdown.textContent = `Next update in ${formatCountdown(nextUpdate - now)}`;
+}
+
+function initializeDataFreshnessTimer() {
+  updateDataFreshness();
+  window.setInterval(updateDataFreshness, 1000);
+}
 
 function valueFor(row, aliases) {
   const key = aliases.find((alias) => Object.hasOwn(row, alias));
@@ -589,10 +646,8 @@ function renderReferralAnalytics() {
   });
 }
 
-function renderCompensation() {
-  const applications = state.applications.filter((application) =>
-    !isClosedStatus(application.status) && hasMeaningfulValue(application.salaryBand)
-  );
+function renderCompensation(offers) {
+  const applications = offers.filter((application) => hasMeaningfulValue(application.salaryBand));
   const body = document.querySelector("#compensationBody");
   const table = document.querySelector(".compensation-table");
   const empty = document.querySelector("#compensationEmpty");
@@ -612,8 +667,8 @@ function renderCompensation() {
   table.hidden = applications.length === 0;
   empty.hidden = applications.length > 0;
   document.querySelector("#compensationSummary").textContent = applications.length
-    ? `${applications.length} active role${applications.length === 1 ? "" : "s"} with salary data`
-    : "No salary data for active roles";
+    ? `${applications.length} offer${applications.length === 1 ? "" : "s"} with salary data`
+    : "No salary data for offers";
 }
 
 function percentage(count, total) {
@@ -839,6 +894,7 @@ function initializeSectionDisclosure({ toggleId, contentId, showLabel, hideLabel
   const toggle = document.querySelector(`#${toggleId}`);
   const content = document.querySelector(`#${contentId}`);
   const section = toggle.closest("section");
+  const card = section.querySelector(":scope > .shell");
 
   toggle.addEventListener("click", () => {
     const isExpanded = toggle.getAttribute("aria-expanded") === "true";
@@ -846,8 +902,31 @@ function initializeSectionDisclosure({ toggleId, contentId, showLabel, hideLabel
     toggle.querySelector("span").textContent = isExpanded ? showLabel : hideLabel;
     content.hidden = isExpanded;
     updateExpandableSectionGroup(section, !isExpanded);
+    queueMicrotask(() => updateExpandableCardTrigger(
+      card,
+      toggle,
+      section.classList.contains("is-expanded")
+    ));
     if (!isExpanded) onExpand?.();
   });
+}
+
+function updateExpandableCardTrigger(card, toggle, isExpanded) {
+  if (isExpanded) {
+    card.removeAttribute("role");
+    card.removeAttribute("tabindex");
+    card.removeAttribute("aria-label");
+    card.removeAttribute("aria-controls");
+    card.removeAttribute("aria-expanded");
+    return;
+  }
+
+  const title = card.querySelector("h2").textContent;
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
+  card.setAttribute("aria-label", `Open ${title}`);
+  card.setAttribute("aria-controls", toggle.getAttribute("aria-controls"));
+  card.setAttribute("aria-expanded", "false");
 }
 
 function updateExpandableSectionGroup(activeSection, isExpanded) {
@@ -863,9 +942,16 @@ function initializeExpandableSectionCards() {
   document.querySelectorAll(".expandable-sections > section").forEach((section) => {
     const card = section.querySelector(":scope > .shell");
     const toggle = section.querySelector(".section-toggle");
+    updateExpandableCardTrigger(card, toggle, false);
     card.addEventListener("click", (event) => {
       if (section.classList.contains("is-expanded")) return;
       if (event.target.closest("button, a, input, select, textarea")) return;
+      toggle.click();
+    });
+    card.addEventListener("keydown", (event) => {
+      if (section.classList.contains("is-expanded")) return;
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
       toggle.click();
     });
   });
@@ -1221,7 +1307,6 @@ function renderCharts() {
 
   renderStageFunnel();
   renderReferralAnalytics();
-  renderCompensation();
 }
 
 function populateStatusFilter() {
@@ -1361,6 +1446,10 @@ function openKpiDrilldown(key) {
   });
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
 
+  const offerCompensation = document.querySelector("#offerCompensation");
+  offerCompensation.hidden = key !== "offer";
+  if (key === "offer") renderCompensation(applications);
+
   document.querySelector("#kpiDialogTitle").textContent = titles[key] || "Applications";
   document.querySelector("#kpiDialogSummary").textContent = `${applications.length} application${applications.length === 1 ? "" : "s"}`;
   document.querySelector("#kpiDialogTableWrap").hidden = applications.length === 0;
@@ -1416,15 +1505,16 @@ function initializeDashboard(rows, sourceLabel) {
   renderApplicationInsights();
   initializeInsightCarousel();
   applyFilters();
-
-  const today = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date());
-  elements.syncLabel.textContent = `${sourceLabel} loaded ${today}`;
+  state.dataLoadStatus = "loaded";
+  document.querySelector(".sync-state").title = `${sourceLabel}; estimated from scheduled updates at 8:00 AM and 8:00 PM local time`;
+  updateDataFreshness();
 }
 
 function showLoadError(message) {
+  state.dataLoadStatus = "unavailable";
   elements.loadMessage.hidden = false;
   elements.loadMessage.textContent = message;
-  elements.syncLabel.textContent = "Data unavailable";
+  updateDataFreshness();
   elements.resultSummary.textContent = "Unable to load applications";
   elements.emptyState.hidden = false;
   document.querySelector(".table-wrap").hidden = true;
@@ -1555,6 +1645,7 @@ async function loadDashboardData() {
 
 window.addEventListener("DOMContentLoaded", () => {
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  initializeDataFreshnessTimer();
   initializeExpandableSectionCards();
   initializeSectionDisclosure({
     toggleId: "toggleJobPortals",

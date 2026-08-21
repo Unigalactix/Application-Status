@@ -6,6 +6,8 @@ A static, responsive dashboard that loads the latest job application data direct
 
 The live CSV is configured in `app.js` with the published URL for sheet tab `1438332888`. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
 
+The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. The age is an estimate because the published CSV does not provide its own refresh timestamp.
+
 Because this is a **Publish to web** URL, every field in the CSV is publicly accessible to anyone with the URL, even if a field is not displayed by the dashboard. This includes recruiter names and email addresses in `Recruiter / POC (Name & Email)`. Remove sensitive contact details from the published tab or publish a separate sanitized tab if that information should remain private.
 
 The current tracker columns are:
@@ -33,7 +35,7 @@ The current tracker columns are:
 - Daily application volume for the latest 30 days
 - Interview-stage funnel with terminal outcomes reported separately
 - Referral cohort sizes, interview rates, and referral lift when both cohorts exist
-- Compensation details for active roles with meaningful salary bands
+- Offer compensation details inside the Offers KPI popup when salary bands are available
 - Pipeline health, stale-record detection, inactivity aging, and follow-up priorities
 - Employer response and interview conversion across the complete portfolio
 - Source, company, and role concentration rankings with interview conversion
