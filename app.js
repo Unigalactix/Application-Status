@@ -13,6 +13,9 @@ const COLUMN_ALIASES = {
   location: ["Location / Work Mode", "Location", "Work Mode"],
   source: ["Portal / Source", "Source", "Portal"],
   nextAction: ["Action Required / Next Steps", "Next Steps", "Next Action"],
+  followUpDate: ["Follow-Up Date", "Follow Up Date", "Follow-up Date"],
+  lastFollowUpDate: ["Last Follow-Up Date", "Last Follow Up Date", "Last Follow-up Date"],
+  rejectionStage: ["Rejection Stage", "Rejection Category", "Rejection Reason"],
   notes: ["Notes / Verification Evidence", "Notes", "Verification Evidence"],
   latestEmailLink: ["Latest Email Link", "Latest Email", "Email Link"]
 };
@@ -24,7 +27,8 @@ const DATA_SOURCE = {
 
 const JOBS_SOURCE = {
   label: "Job postings feed",
-  url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLlTyzQlweD2qxir3pBkosG9KzQAhRZRIjV_i3PiCkQGfE_IkzyKPw074zmenTPYrIkBGqpCFz1Zt0/pub?output=csv"
+  url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLlTyzQlweD2qxir3pBkosG9KzQAhRZRIjV_i3PiCkQGfE_IkzyKPw074zmenTPYrIkBGqpCFz1Zt0/pub?output=csv",
+  sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLlTyzQlweD2qxir3pBkosG9KzQAhRZRIjV_i3PiCkQGfE_IkzyKPw074zmenTPYrIkBGqpCFz1Zt0/pubhtml"
 };
 
 const JOB_COLUMN_ALIASES = {
@@ -42,12 +46,21 @@ const JOB_COLUMN_ALIASES = {
 const PAGE_SIZE = 10;
 const WEEKLY_APPLICATION_GOAL = 10;
 const SCHEDULED_UPDATE_HOURS = [8, 20];
+const FOLLOW_UP_STORAGE_KEY = "application-tracker-follow-ups";
+const THEME_STORAGE_KEY = "application-tracker-theme";
+
+function loadFollowUpLog() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FOLLOW_UP_STORAGE_KEY) || "{}");
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+  } catch {
+    return {};
+  }
+}
 
 const state = {
   applications: [],
-  statusChart: null,
   timelineChart: null,
-  referralChart: null,
   drilldown: null,
   currentPage: 1,
   filteredApplications: [],
@@ -55,9 +68,9 @@ const state = {
   activeColumnFilter: null,
   activeColumnValues: [],
   pendingColumnValues: new Set(),
-  insightStartIndex: 0,
   dataLoadStatus: "loading",
-  jobPostings: []
+  jobPostings: [],
+  followUpLog: loadFollowUpLog()
 };
 
 const elements = {
@@ -75,11 +88,14 @@ const elements = {
   syncState: document.querySelector("#syncState"),
   syncLabel: document.querySelector("#syncLabel"),
   syncCountdown: document.querySelector("#syncCountdown"),
+  themeToggle: document.querySelector("#themeToggle"),
   totalMetric: document.querySelector("#totalMetric"),
   monthMetric: document.querySelector("#monthMetric"),
   activeMetric: document.querySelector("#activeMetric"),
   interviewMetric: document.querySelector("#interviewMetric"),
-  offerMetric: document.querySelector("#offerMetric")
+  offerMetric: document.querySelector("#offerMetric"),
+  rejectedMetric: document.querySelector("#rejectedMetric"),
+  followUpMetric: document.querySelector("#followUpMetric")
 };
 
 const jobElements = {
@@ -90,8 +106,53 @@ const jobElements = {
   summary: document.querySelector("#jobPostingSummary"),
   message: document.querySelector("#jobPostingsMessage"),
   grid: document.querySelector("#jobPostingsGrid"),
-  empty: document.querySelector("#jobPostingsEmpty")
+  empty: document.querySelector("#jobPostingsEmpty"),
+  source: document.querySelector("#jobPostingsSource")
 };
+
+function storedTheme() {
+  try {
+    const theme = localStorage.getItem(THEME_STORAGE_KEY);
+    return theme === "light" || theme === "dark" ? theme : null;
+  } catch {
+    return null;
+  }
+}
+
+function updateThemeControl(theme) {
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const label = `Switch to ${nextTheme} mode`;
+  const icon = elements.themeToggle.querySelector("svg, i");
+  elements.themeToggle.setAttribute("aria-label", label);
+  elements.themeToggle.title = label;
+  icon.setAttribute("data-lucide", theme === "dark" ? "sun" : "moon");
+}
+
+function applyTheme(theme, persist = false) {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // The active theme still applies when browser storage is unavailable.
+    }
+  }
+  updateThemeControl(theme);
+  if (window.lucide) lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  if (state.timelineChart) renderCharts();
+}
+
+function initializeTheme() {
+  const systemPreference = window.matchMedia("(prefers-color-scheme: dark)");
+  applyTheme(storedTheme() || (systemPreference.matches ? "dark" : "light"));
+  elements.themeToggle.addEventListener("click", () => {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  });
+  systemPreference.addEventListener("change", (event) => {
+    if (!storedTheme()) applyTheme(event.matches ? "dark" : "light");
+  });
+}
 
 function scheduledUpdateWindow(now = new Date()) {
   const todayAt = (hour) => {
@@ -313,6 +374,8 @@ function normalizeRows(rows) {
       const status = valueFor(row, COLUMN_ALIASES.status) || "Unknown";
       const rawDate = valueFor(row, COLUMN_ALIASES.date);
       const rawLastUpdate = valueFor(row, COLUMN_ALIASES.lastUpdate);
+      const rawFollowUpDate = valueFor(row, COLUMN_ALIASES.followUpDate);
+      const rawLastFollowUpDate = valueFor(row, COLUMN_ALIASES.lastFollowUpDate);
 
       return {
         company: company || "Unknown company",
@@ -331,6 +394,11 @@ function normalizeRows(rows) {
         location: valueFor(row, COLUMN_ALIASES.location),
         source: valueFor(row, COLUMN_ALIASES.source),
         nextAction: valueFor(row, COLUMN_ALIASES.nextAction),
+        rawFollowUpDate,
+        parsedFollowUpDate: parseDate(rawFollowUpDate),
+        rawLastFollowUpDate,
+        parsedLastFollowUpDate: parseDate(rawLastFollowUpDate),
+        rejectionStage: valueFor(row, COLUMN_ALIASES.rejectionStage),
         notes: valueFor(row, COLUMN_ALIASES.notes),
         latestEmailLink: valueFor(row, COLUMN_ALIASES.latestEmailLink)
       };
@@ -368,12 +436,6 @@ function formatJobDate(job) {
   if (!job.parsedDate) return job.rawDate || "Date unavailable";
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" })
     .format(job.parsedDate);
-}
-
-function jobSearchUrl(job) {
-  const url = new URL("https://www.google.com/search");
-  url.searchParams.set("q", `\"${job.title}\" \"${job.company}\" careers apply`);
-  return url.href;
 }
 
 function createJobMeta(iconName, text) {
@@ -422,16 +484,21 @@ function createJobPostingCard(job) {
     : daysOld === 0 ? "Posted today"
       : `${daysOld} day${daysOld === 1 ? "" : "s"} ago`;
   const directLink = validExternalUrl(job.applicationLink);
-  const action = document.createElement("a");
-  action.className = directLink ? "job-apply-link" : "job-apply-link job-search-link";
-  action.href = directLink || jobSearchUrl(job);
-  action.target = "_blank";
-  action.rel = "noopener noreferrer";
-  action.title = directLink ? "Open application page" : "Direct link unavailable; search for this exact listing";
+  const action = document.createElement(directLink ? "a" : "span");
+  action.className = directLink ? "job-apply-link" : "job-apply-link is-unavailable";
+  if (directLink) {
+    action.href = directLink;
+    action.target = "_blank";
+    action.rel = "noopener noreferrer";
+    action.title = "Open application page";
+  } else {
+    action.setAttribute("aria-disabled", "true");
+    action.title = "The published sheet does not expose this application's URL";
+  }
   const actionIcon = document.createElement("i");
-  actionIcon.dataset.lucide = directLink ? "send" : "search";
+  actionIcon.dataset.lucide = directLink ? "send" : "link-2-off";
   actionIcon.setAttribute("aria-hidden", "true");
-  action.append(document.createTextNode(directLink ? "Apply" : "Find listing"), actionIcon);
+  action.append(document.createTextNode("Apply now"), actionIcon);
   footer.append(age, action);
 
   card.append(heading, title, metadata, skills, footer);
@@ -473,6 +540,7 @@ function initializeJobPostings(rows) {
   jobElements.badge.textContent = `${state.jobPostings.length} available`;
   jobElements.message.hidden = true;
   renderJobPostings();
+  renderDailyFocus();
 }
 
 function showJobPostingsError(message) {
@@ -503,6 +571,94 @@ function statusTone(status) {
 function isClosedStatus(status) {
   return ["reject", "declin", "withdraw", "closed", "not selected"]
     .some((term) => status.toLowerCase().includes(term));
+}
+
+function isRejectedStatus(status) {
+  return ["reject", "declin", "not selected"]
+    .some((term) => status.toLowerCase().includes(term));
+}
+
+function applicationKey(application) {
+  return [application.applicationId, application.company, application.role, application.rawDate]
+    .join("|").toLowerCase();
+}
+
+function startOfDay(date = new Date()) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function addDays(date, days) {
+  const result = startOfDay(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function effectiveLastFollowUpDate(application) {
+  const localDate = parseDate(state.followUpLog[applicationKey(application)] || "");
+  const sheetDate = application.parsedLastFollowUpDate;
+  if (!localDate) return sheetDate;
+  if (!sheetDate) return localDate;
+  return localDate > sheetDate ? localDate : sheetDate;
+}
+
+function hasExplicitFollowUpAction(application) {
+  const nextAction = application.nextAction.toLowerCase();
+  return ["follow", "contact", "prepare", "schedule", "complete"]
+    .some((term) => nextAction.includes(term));
+}
+
+function followUpDueDate(application, today = new Date()) {
+  if (!isActiveApplication(application)) return null;
+  const lastFollowUpDate = effectiveLastFollowUpDate(application);
+  if (application.parsedFollowUpDate) {
+    if (!lastFollowUpDate || lastFollowUpDate < application.parsedFollowUpDate) {
+      return startOfDay(application.parsedFollowUpDate);
+    }
+    return addDays(lastFollowUpDate, 7);
+  }
+
+  const activityDate = applicationActivityDate(application);
+  if (lastFollowUpDate && (!activityDate || lastFollowUpDate >= activityDate)) {
+    return addDays(lastFollowUpDate, 7);
+  }
+  if (hasExplicitFollowUpAction(application)) return startOfDay(today);
+  return activityDate ? addDays(activityDate, 15) : null;
+}
+
+function followUpCadence(application, today = new Date()) {
+  if (!isActiveApplication(application)) return "Closed";
+  const dueDate = followUpDueDate(application, today);
+  if (!dueDate) return "No date";
+  const daysUntilDue = Math.round((startOfDay(dueDate) - startOfDay(today)) / 86400000);
+  if (daysUntilDue < 0) return effectiveLastFollowUpDate(application) ? "Follow up again" : "Follow up";
+  if (daysUntilDue === 0) return "Due today";
+
+  const inactivity = daysSince(applicationActivityDate(application), today);
+  if (inactivity !== null && inactivity <= 7) return "Wait";
+  if (inactivity !== null && inactivity <= 14) return "Monitor";
+  return "Upcoming";
+}
+
+function isFollowUpNeeded(application, today = new Date()) {
+  const dueDate = followUpDueDate(application, today);
+  return Boolean(dueDate) && startOfDay(dueDate) <= startOfDay(today);
+}
+
+function rejectionCategory(application) {
+  if (hasMeaningfulValue(application.rejectionStage)) return application.rejectionStage;
+  const evidence = `${application.status} ${application.interviewStage} ${application.notes}`.toLowerCase();
+  if (["position closed", "role closed", "position filled", "cancelled", "canceled"]
+    .some((term) => evidence.includes(term))) return "Position closed";
+  if (["assessment", "coding test", "take-home", "take home"]
+    .some((term) => evidence.includes(term))) return "After assessment";
+  if (["interview", "screen", "onsite", "panel", "technical", "system design"]
+    .some((term) => evidence.includes(term))) return "After interview";
+  if (!hasMeaningfulValue(application.interviewStage)
+    || ["applied", "submitted", "under review", "recruiter review", "declin", "reject", "not started"]
+      .some((term) => application.interviewStage.toLowerCase().includes(term))) return "Before screening";
+  return "Unknown";
 }
 
 function isInterviewStatus(status) {
@@ -547,6 +703,13 @@ function formatDate(application) {
 function createCell(text, className) {
   const cell = document.createElement("td");
   cell.textContent = text;
+  if (className) cell.className = className;
+  return cell;
+}
+
+function createNodeCell(node, className) {
+  const cell = document.createElement("td");
+  cell.append(node);
   if (className) cell.className = className;
   return cell;
 }
@@ -831,10 +994,16 @@ function renderMetrics() {
   elements.activeMetric.textContent = metricCount((status) => !isClosedStatus(status) && !isOfferStatus(status));
   elements.interviewMetric.textContent = state.applications.filter(isInterviewReached).length;
   elements.offerMetric.textContent = metricCount(isOfferStatus);
+  elements.rejectedMetric.textContent = metricCount(isRejectedStatus);
+  elements.followUpMetric.textContent = state.applications.filter((application) => isFollowUpNeeded(application)).length;
 }
 
 function chartTextColor() {
   return getComputedStyle(document.documentElement).getPropertyValue("--muted").trim();
+}
+
+function chartGridColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--chart-grid").trim();
 }
 
 function localDateKey(date) {
@@ -884,58 +1053,6 @@ function renderStageFunnel() {
   terminal.className = "funnel-terminal";
   terminal.textContent = `${terminalCounts} terminal outcome${terminalCounts === 1 ? "" : "s"} reported separately (closed or declined).`;
   funnel.append(terminal);
-}
-
-function renderReferralAnalytics() {
-  const referred = state.applications.filter((application) => hasReferral(application.referral));
-  const direct = state.applications.filter((application) => !hasReferral(application.referral));
-  const referredRate = referred.length
-    ? (referred.filter(isInterviewReached).length / referred.length) * 100
-    : 0;
-  const directRate = direct.length
-    ? (direct.filter(isInterviewReached).length / direct.length) * 100
-    : 0;
-
-  document.querySelector("#referredCount").textContent = referred.length;
-  document.querySelector("#directCount").textContent = direct.length;
-  document.querySelector("#referralLift").textContent = referred.length && direct.length
-    ? `${referredRate - directRate >= 0 ? "+" : ""}${Math.round(referredRate - directRate)} pp`
-    : "N/A";
-  document.querySelector("#referralNote").textContent = referred.length
-    ? "Interview progress includes screening, assessment, interview, onsite, and offer stages."
-    : "No referred applications are recorded yet, so referral lift cannot be compared.";
-
-  state.referralChart?.destroy();
-  state.referralChart = new Chart(document.querySelector("#referralChart"), {
-    type: "bar",
-    data: {
-      labels: ["With referral", "Without referral"],
-      datasets: [{
-        label: "Interview rate",
-        data: [referredRate, directRate],
-        backgroundColor: ["#d7972a", "#33758d"],
-        borderRadius: 4,
-        barThickness: 32
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: { color: chartTextColor(), callback: (value) => `${value}%` },
-          grid: { color: "#e7ece8" }
-        },
-        x: { ticks: { color: chartTextColor() }, grid: { display: false } }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (context) => `${context.raw.toFixed(1)}% reached interview` } }
-      }
-    }
-  });
 }
 
 function renderCompensation(offers) {
@@ -1012,8 +1129,147 @@ function groupApplications(applications, getKey) {
     total: group.length,
     active: group.filter(isActiveApplication).length,
     interviews: group.filter(isInterviewReached).length,
+    offers: group.filter((application) => isOfferStatus(application.status)).length,
+    rejected: group.filter((application) => isRejectedStatus(application.status)).length,
     closed: group.filter((application) => isClosedStatus(application.status)).length
   }));
+}
+
+function formatShortDate(date) {
+  return date
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)
+    : "Date unavailable";
+}
+
+function createFocusEmpty(message) {
+  const empty = document.createElement("p");
+  empty.className = "focus-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+function createFollowUpButton(application, label = "Followed up") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "follow-up-complete";
+  button.dataset.applicationKey = applicationKey(application);
+  button.title = "Record a follow-up today in this browser";
+  const icon = document.createElement("i");
+  icon.dataset.lucide = "check";
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon, document.createTextNode(label));
+  return button;
+}
+
+function createFocusApplication(application, { action = false } = {}) {
+  const item = document.createElement("article");
+  item.className = "focus-item";
+  const copy = document.createElement("div");
+  const company = document.createElement("strong");
+  company.textContent = application.company;
+  const role = document.createElement("span");
+  role.textContent = application.role;
+  const detail = document.createElement("small");
+  const dueDate = followUpDueDate(application);
+  detail.textContent = action
+    ? `${followUpCadence(application)} · ${formatShortDate(dueDate)} · ${displayValue(application.nextAction)}`
+    : `${displayValue(application.interviewStage)} · ${displayValue(application.nextAction)}`;
+  copy.append(company, role, detail);
+  item.append(copy);
+  if (action) item.append(createFollowUpButton(application));
+  return item;
+}
+
+function renderFocusList(id, items, createItem, emptyMessage) {
+  const container = document.querySelector(`#${id}`);
+  container.replaceChildren(...(items.length ? items.map(createItem) : [createFocusEmpty(emptyMessage)]));
+}
+
+function renderDailyFocus() {
+  if (!state.applications.length) return;
+  const today = startOfDay();
+  const active = state.applications.filter(isActiveApplication);
+  const dueApplications = active
+    .map((application) => ({ application, dueDate: followUpDueDate(application, today) }))
+    .filter(({ dueDate }) => dueDate)
+    .sort((first, second) => first.dueDate - second.dueDate
+      || (applicationActivityDate(first.application)?.getTime() || 0)
+      - (applicationActivityDate(second.application)?.getTime() || 0));
+  const overdue = dueApplications.filter(({ dueDate }) => dueDate < today).map(({ application }) => application);
+  const dueToday = dueApplications.filter(({ dueDate }) => isSameLocalDate(dueDate, today)).map(({ application }) => application);
+  const upcoming = dueApplications.filter(({ dueDate }) => dueDate > today)
+    .slice(0, 5).map(({ application }) => application);
+
+  document.querySelector("#overdueFollowUpCount").textContent = overdue.length;
+  document.querySelector("#todayFollowUpCount").textContent = dueToday.length;
+  document.querySelector("#upcomingFollowUpCount").textContent = upcoming.length;
+  renderFocusList("overdueFollowUps", overdue, (application) => createFocusApplication(application, { action: true }), "Nothing overdue");
+  renderFocusList("todayFollowUps", dueToday, (application) => createFocusApplication(application, { action: true }), "Nothing due today");
+  renderFocusList("upcomingFollowUps", upcoming, (application) => createFocusApplication(application, { action: true }), "No upcoming follow-ups");
+
+  const interviews = active.filter((application) => isInterviewReached(application)
+    || ["assessment", "screen", "interview", "schedule", "complete", "prepare"]
+      .some((term) => `${application.interviewStage} ${application.nextAction}`.toLowerCase().includes(term)))
+    .slice(0, 5);
+  renderFocusList("focusInterviews", interviews, createFocusApplication, "No interviews or assessments queued");
+
+  const missingDetails = active.filter((application) =>
+    !hasMeaningfulValue(application.recruiter)
+    || !hasMeaningfulValue(application.resumeVersion)
+    || !hasMeaningfulValue(application.nextAction)
+  ).slice(0, 5);
+  renderFocusList("focusMissingDetails", missingDetails, (application) => {
+    const item = createFocusApplication(application);
+    const missing = [
+      !hasMeaningfulValue(application.recruiter) && "recruiter",
+      !hasMeaningfulValue(application.resumeVersion) && "resume version",
+      !hasMeaningfulValue(application.nextAction) && "next step"
+    ].filter(Boolean).join(", ");
+    item.querySelector("small").textContent = `Missing: ${missing}`;
+    return item;
+  }, "Key application details are complete");
+
+  const strongJobs = state.jobPostings.filter((job) => job.matchScore >= 80).slice(0, 5);
+  renderFocusList("focusJobMatches", strongJobs, (job) => {
+    const item = document.createElement("article");
+    item.className = "focus-item";
+    const copy = document.createElement("div");
+    const company = document.createElement("strong");
+    company.textContent = job.company;
+    const role = document.createElement("span");
+    role.textContent = job.title;
+    const detail = document.createElement("small");
+    detail.textContent = `${job.matchScore}% match · ${job.location || "Location unavailable"}`;
+    copy.append(company, role, detail);
+    item.append(copy);
+    const directLink = validExternalUrl(job.applicationLink);
+    if (directLink) {
+      const link = document.createElement("a");
+      link.className = "focus-job-link";
+      link.href = directLink;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.title = "Open application page";
+      const icon = document.createElement("i");
+      icon.dataset.lucide = "send";
+      icon.setAttribute("aria-hidden", "true");
+      link.append(icon, document.createTextNode("Apply"));
+      item.append(link);
+    }
+    return item;
+  }, state.jobPostings.length ? "No jobs currently score 80% or higher" : "Job matches are loading");
+
+  document.querySelector("#dailyFocusSummary").textContent = `${overdue.length + dueToday.length} follow-up${overdue.length + dueToday.length === 1 ? "" : "s"} need attention`;
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+}
+
+function recordFollowUp(applicationKeyValue) {
+  state.followUpLog[applicationKeyValue] = localDateKey(new Date());
+  localStorage.setItem(FOLLOW_UP_STORAGE_KEY, JSON.stringify(state.followUpLog));
+  renderMetrics();
+  renderApplicationInsights();
+  renderDailyFocus();
+  document.querySelector("#dailyFocusStatus").textContent = "Follow-up recorded for today in this browser.";
 }
 
 function roleConcentration(role) {
@@ -1081,34 +1337,6 @@ function renderInsightPanel(id, metrics, rows = [], note = "") {
   }
 }
 
-function insightCardsPerView() {
-  return window.matchMedia("(max-width: 700px)").matches ? 1 : 2;
-}
-
-function updateInsightCarouselControls() {
-  const cards = [...document.querySelectorAll(".insight-panel")];
-  const cardsPerView = insightCardsPerView();
-  const maximumStart = Math.max(0, cards.length - cardsPerView);
-  state.insightStartIndex = Math.min(Math.max(0, state.insightStartIndex), maximumStart);
-  const end = Math.min(state.insightStartIndex + cardsPerView, cards.length);
-  document.querySelector("#insightPosition").textContent = `${state.insightStartIndex + 1}-${end} of ${cards.length}`;
-  document.querySelector("#previousInsights").disabled = state.insightStartIndex === 0;
-  document.querySelector("#nextInsights").disabled = state.insightStartIndex === maximumStart;
-}
-
-function scrollToInsight(index, behavior = "smooth") {
-  const viewport = document.querySelector("#insightCarouselViewport");
-  const track = viewport.querySelector(".intelligence-grid");
-  const cards = [...track.querySelectorAll(".insight-panel")];
-  const cardsPerView = insightCardsPerView();
-  state.insightStartIndex = Math.min(Math.max(0, index), Math.max(0, cards.length - cardsPerView));
-  const target = cards[state.insightStartIndex];
-  if (target) {
-    viewport.scrollTo({ left: target.offsetLeft - track.offsetLeft, behavior });
-  }
-  updateInsightCarouselControls();
-}
-
 function openInsightDetail(card) {
   const title = card.querySelector("h3").textContent;
   const summary = card.querySelector(".panel-heading p").textContent;
@@ -1120,14 +1348,11 @@ function openInsightDetail(card) {
   document.querySelector("#insightDetailDialog").showModal();
 }
 
-function initializeInsightCarousel() {
-  const viewport = document.querySelector("#insightCarouselViewport");
-  if (viewport.dataset.ready === "true") {
-    scrollToInsight(state.insightStartIndex, "auto");
-    return;
-  }
-  viewport.dataset.ready = "true";
-  const cards = [...viewport.querySelectorAll(".insight-panel")];
+function initializeInsightCards() {
+  const container = document.querySelector("#applicationInsightsContent");
+  if (container.dataset.ready === "true") return;
+  container.dataset.ready = "true";
+  const cards = [...container.querySelectorAll(".insight-panel")];
   cards.forEach((card, index) => {
     const title = card.querySelector("h3").textContent;
     card.tabIndex = 0;
@@ -1135,41 +1360,16 @@ function initializeInsightCarousel() {
     card.setAttribute("aria-label", `Open ${title} details`);
     card.setAttribute("aria-posinset", String(index + 1));
     card.setAttribute("aria-setsize", String(cards.length));
-    card.addEventListener("click", () => openInsightDetail(card));
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea")) return;
+      openInsightDetail(card);
+    });
     card.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       openInsightDetail(card);
     });
   });
-
-  document.querySelector("#previousInsights").addEventListener("click", () => {
-    scrollToInsight(state.insightStartIndex - insightCardsPerView());
-  });
-  document.querySelector("#nextInsights").addEventListener("click", () => {
-    scrollToInsight(state.insightStartIndex + insightCardsPerView());
-  });
-  viewport.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowLeft") scrollToInsight(state.insightStartIndex - insightCardsPerView());
-    if (event.key === "ArrowRight") scrollToInsight(state.insightStartIndex + insightCardsPerView());
-  });
-
-  let scrollFrame;
-  viewport.addEventListener("scroll", () => {
-    cancelAnimationFrame(scrollFrame);
-    scrollFrame = requestAnimationFrame(() => {
-      const track = viewport.querySelector(".intelligence-grid");
-      const left = viewport.scrollLeft;
-      state.insightStartIndex = cards.reduce((closestIndex, card, index) => {
-        const cardLeft = card.offsetLeft - track.offsetLeft;
-        const closestLeft = cards[closestIndex].offsetLeft - track.offsetLeft;
-        return Math.abs(cardLeft - left) < Math.abs(closestLeft - left) ? index : closestIndex;
-      }, 0);
-      updateInsightCarouselControls();
-    });
-  }, { passive: true });
-  window.addEventListener("resize", () => scrollToInsight(state.insightStartIndex, "auto"));
-  scrollToInsight(0, "auto");
 }
 
 function initializeApplicationInsightsDisclosure() {
@@ -1177,8 +1377,7 @@ function initializeApplicationInsightsDisclosure() {
     toggleId: "toggleApplicationInsights",
     contentId: "applicationInsightsContent",
     showLabel: "Show insights",
-    hideLabel: "Hide insights",
-    onExpand: () => requestAnimationFrame(() => scrollToInsight(state.insightStartIndex, "auto"))
+    hideLabel: "Hide insights"
   });
 }
 
@@ -1204,7 +1403,7 @@ function initializeSectionDisclosure({ toggleId, contentId, showLabel, hideLabel
 }
 
 function updateExpandableCardTrigger(card, toggle, isExpanded) {
-  if (isExpanded) {
+  if (isExpanded || card.hasAttribute("data-inline-action")) {
     card.removeAttribute("role");
     card.removeAttribute("tabindex");
     card.removeAttribute("aria-label");
@@ -1250,9 +1449,7 @@ function initializeExpandableSectionCards() {
 }
 
 function resizeVisualCharts() {
-  state.statusChart?.resize();
   state.timelineChart?.resize();
-  state.referralChart?.resize();
 }
 
 let activeVisualizationCard = null;
@@ -1374,114 +1571,27 @@ function initializeVisualCarousel({
 
 function renderApplicationInsights() {
   const applications = state.applications;
-  const active = applications.filter(isActiveApplication);
-  const responded = applications.filter(hasEmployerResponse);
-  const interviews = applications.filter(isInterviewReached);
-  const activeAges = active
-    .map((application) => daysSince(applicationActivityDate(application)))
-    .filter((days) => days !== null);
-  const stale14 = active.filter((application) =>
-    (daysSince(applicationActivityDate(application)) || 0) > 14
-  );
-  const followUps = active.filter((application) => {
-    const nextAction = application.nextAction.toLowerCase();
-    return ["follow", "contact", "prepare", "schedule", "complete"]
-      .some((term) => nextAction.includes(term));
-  });
-
-  renderInsightPanel("pipelineHealthInsight", [
-    { value: active.length, label: "Active" },
-    { value: stale14.length, label: "Stale 14+ days" },
-    { value: followUps.length, label: "Action indicated" },
-    { value: `${median(activeAges)}d`, label: "Median inactivity" }
-  ], stale14
-    .sort((first, second) => daysSince(applicationActivityDate(second)) - daysSince(applicationActivityDate(first)))
-    .slice(0, 3)
-    .map((application) => ({
-      label: application.company,
-      detail: application.role,
-      value: `${daysSince(applicationActivityDate(application))}d`
-    })), "Stale uses the latest status update, or application date when no update is recorded.");
-
-  renderInsightPanel("responseInsight", [
-    { value: `${percentage(responded.length, applications.length)}%`, label: "Response rate", detail: `${responded.length} of ${applications.length}` },
-    { value: `${percentage(interviews.length, applications.length)}%`, label: "Interview rate", detail: `${interviews.length} reached screening+` },
-    { value: `${percentage(applications.filter((application) => isClosedStatus(application.status)).length, applications.length)}%`, label: "Terminal rate" },
-    { value: `${percentage(applications.filter((application) => isOfferStatus(application.status)).length, applications.length)}%`, label: "Offer rate" }
-  ], [], "Response means screening/interview/offer progress or a terminal employer decision.");
-
-  const agingBuckets = [
-    { label: "0-7 days", minimum: 0, maximum: 7 },
-    { label: "8-14 days", minimum: 8, maximum: 14 },
-    { label: "15-30 days", minimum: 15, maximum: 30 },
-    { label: "30+ days", minimum: 31, maximum: Infinity }
-  ];
-  renderInsightPanel("agingInsight", [
-    { value: `${median(activeAges)}d`, label: "Median inactivity" },
-    { value: `${Math.max(...activeAges, 0)}d`, label: "Oldest inactivity" }
-  ], agingBuckets.map((bucket) => {
-    const count = activeAges.filter((days) => days >= bucket.minimum && days <= bucket.maximum).length;
-    return {
-      label: bucket.label,
-      detail: `${percentage(count, active.length)}% of active pipeline`,
-      value: count
-    };
-  }), "Aging measures inactivity, not total time spent in each stage.");
-
   const allSourceGroups = groupApplications(applications, (application) => displayValue(application.source))
     .sort((first, second) => second.total - first.total);
-  const sourceGroups = allSourceGroups.slice(0, 5);
-  renderInsightPanel("sourceInsight", [
-    { value: allSourceGroups.length, label: "Sources" },
-    { value: sourceGroups[0]?.label || "N/A", label: "Highest volume" }
-  ], sourceGroups.map((group) => ({
-    label: group.label,
-    detail: `${group.interviews} interview-stage application${group.interviews === 1 ? "" : "s"}`,
-    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
-  })), "Rows show application volume followed by interview conversion.");
-
   const companyGroups = groupApplications(applications, (application) => application.company)
-    .sort((first, second) => second.total - first.total)
-    .slice(0, 5);
+    .sort((first, second) => second.total - first.total);
   const topCompany = companyGroups[0];
-  renderInsightPanel("companyInsight", [
-    { value: new Set(applications.map((application) => application.company)).size, label: "Companies" },
-    { value: `${percentage(topCompany?.total || 0, applications.length)}%`, label: "Top-company share", detail: topCompany?.label || "N/A" }
-  ], companyGroups.map((group) => ({
-    label: group.label,
-    detail: `${group.active} active · ${group.closed} terminal`,
-    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
-  })), topCompany && percentage(topCompany.total, applications.length) >= 40
-    ? `${topCompany.label} represents a high concentration of the current portfolio.`
-    : "No single company exceeds 40% of the current portfolio.");
-
   const roleGroups = groupApplications(applications, (application) => roleConcentration(application.role))
     .sort((first, second) => second.total - first.total);
-  const noResponseRoles = applications.filter((application) => !hasEmployerResponse(application)).length;
-  renderInsightPanel("roleInsight", [
-    { value: new Set(applications.map((application) => application.role)).size, label: "Exact roles" },
-    { value: noResponseRoles, label: "Awaiting response" }
-  ], roleGroups.map((group) => ({
-    label: group.label,
-    detail: `${group.interviews} reached screening+`,
-    value: `${group.total} · ${percentage(group.interviews, group.total)}%`
-  })), hasMeaningfulValue(applications.find((application) => application.resumeVersion)?.resumeVersion || "")
-    ? "Resume-version effectiveness can be compared as data accumulates."
-    : "Resume effectiveness is unavailable until Resume Version is populated.");
-
-  const missingRecruiter = applications.filter((application) => !hasMeaningfulValue(application.recruiter)).length;
-  const missingResume = applications.filter((application) => !hasMeaningfulValue(application.resumeVersion)).length;
-  const missingSalary = active.filter((application) => !hasMeaningfulValue(application.salaryBand)).length;
-  const noReferral = applications.filter((application) => !hasReferral(application.referral)).length;
-  renderInsightPanel("actionInsight", [
-    { value: stale14.length, label: "Follow up: 14+ days" },
-    { value: followUps.length, label: "Explicit next actions" }
-  ], [
-    { label: "Missing recruiter contact", value: missingRecruiter, detail: "All applications" },
-    { label: "Missing resume version", value: missingResume, detail: "Needed for resume analysis" },
-    { label: "Missing active salary band", value: missingSalary, detail: "Active applications only" },
-    { label: "No referral recorded", value: noReferral, detail: "Referral cohort unavailable" }
-  ], "Prioritize stale active records, then enrich fields needed for outcome analysis.");
+  const strongestConversion = (groups) => [...groups]
+    .filter((group) => group.total >= 2)
+    .sort((first, second) =>
+      percentage(second.interviews, second.total) - percentage(first.interviews, first.total)
+      || second.interviews - first.interviews
+      || second.total - first.total
+    )[0];
+  const bestSource = strongestConversion(allSourceGroups);
+  const bestRole = strongestConversion(roleGroups);
+  renderInsightPanel("targetingInsight", [
+    { value: bestSource?.label || "N/A", label: "Best source", detail: bestSource ? `${percentage(bestSource.interviews, bestSource.total)}% interview rate` : "Needs more data" },
+    { value: bestRole?.label || "N/A", label: "Best role focus", detail: bestRole ? `${percentage(bestRole.interviews, bestRole.total)}% interview rate` : "Needs more data" },
+    { value: `${percentage(topCompany?.total || 0, applications.length)}%`, label: "Top-company share", detail: topCompany?.label || "N/A" }
+  ], [], "Conversion leaders require at least two applications; company share highlights concentration risk.");
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -1501,19 +1611,29 @@ function renderApplicationInsights() {
   const weeklyDelta = thisWeek.length - priorWeek.length;
   renderInsightPanel("weeklyInsight", [
     { value: thisWeek.length, label: "Applied this week", detail: `${weeklyDelta >= 0 ? "+" : ""}${weeklyDelta} vs prior week` },
-    { value: priorWeek.length, label: "Prior week" },
-    { value: thisWeek.filter(isInterviewReached).length, label: "New apps at screening+" },
-    { value: closuresThisWeek.length, label: "Closures recorded" }
+    { value: `${percentage(thisWeek.length, WEEKLY_APPLICATION_GOAL)}%`, label: "Goal reached", detail: `${thisWeek.length} of ${WEEKLY_APPLICATION_GOAL}` },
+    { value: thisWeek.filter(isInterviewReached).length, label: "Reached screening+" }
   ], [{
-    label: "Weekly application goal",
-    detail: `Default target: ${WEEKLY_APPLICATION_GOAL}`,
-    value: `${percentage(thisWeek.length, WEEKLY_APPLICATION_GOAL)}%`
-  }], "Weekly windows are rolling seven-day periods ending today. The goal is configurable in app.js.");
+    label: "Prior week",
+    detail: `${closuresThisWeek.length} closure${closuresThisWeek.length === 1 ? "" : "s"} recorded this week`,
+    value: priorWeek.length
+  }], "Rolling seven-day windows ending today.");
+
+  const rejected = applications.filter((application) => isRejectedStatus(application.status));
+  const rejectionGroups = groupApplications(rejected, rejectionCategory)
+    .sort((first, second) => second.total - first.total);
+  const primaryRejection = rejectionGroups[0];
+  const postScreenRejections = rejected.filter((application) =>
+    ["After assessment", "After interview"].includes(rejectionCategory(application))
+  ).length;
+  renderInsightPanel("rejectionInsight", [
+    { value: primaryRejection?.label || "N/A", label: "Primary rejection point", detail: primaryRejection ? `${primaryRejection.total} applications` : "No rejections" },
+    { value: `${percentage(primaryRejection?.total || 0, rejected.length)}%`, label: "Share at that point" },
+    { value: postScreenRejections, label: "Post-screen rejections" }
+  ], [], "A high before-screening share points to targeting or resume alignment; explicit Rejection Stage values override inference.");
 }
 
 function renderCharts() {
-  const statuses = Object.entries(countBy(state.applications, (application) => application.status))
-    .sort((first, second) => second[1] - first[1]);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const timelineDates = Array.from({ length: 30 }, (_value, index) => {
@@ -1526,42 +1646,7 @@ function renderCharts() {
     (application) => localDateKey(application.parsedDate)
   );
 
-  state.statusChart?.destroy();
   state.timelineChart?.destroy();
-
-  state.statusChart = new Chart(document.querySelector("#statusChart"), {
-    type: "doughnut",
-    data: {
-      labels: statuses.map(([status]) => status),
-      datasets: [{
-        data: statuses.map(([, count]) => count),
-        backgroundColor: ["#184f3a", "#d7972a", "#33758d", "#c95d4b", "#83958b", "#7d6049", "#5d7a68"],
-        borderColor: "#ffffff",
-        borderWidth: 3,
-        hoverOffset: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "66%",
-      onClick: (_event, activeElements) => {
-        if (!activeElements.length) return;
-        const status = statuses[activeElements[0].index][0];
-        setDrilldown({
-          key: `status:${status}`,
-          label: `Status: ${status}`,
-          predicate: (application) => application.status === status
-        });
-      },
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: { boxWidth: 10, boxHeight: 10, color: chartTextColor(), padding: 16, usePointStyle: true }
-        }
-      }
-    }
-  });
 
   state.timelineChart = new Chart(document.querySelector("#timelineChart"), {
     type: "line",
@@ -1589,7 +1674,7 @@ function renderCharts() {
         y: {
           beginAtZero: true,
           ticks: { color: chartTextColor(), precision: 0, stepSize: 1 },
-          grid: { color: "#e7ece8" }
+          grid: { color: chartGridColor() }
         },
         x: { ticks: { color: chartTextColor(), maxTicksLimit: 8 }, grid: { display: false } }
       },
@@ -1598,7 +1683,6 @@ function renderCharts() {
   });
 
   renderStageFunnel();
-  renderReferralAnalytics();
 }
 
 function populateStatusFilter() {
@@ -1704,6 +1788,16 @@ function metricDrilldown(key) {
       key: "offer",
       label: "Offers",
       predicate: (application) => isOfferStatus(application.status)
+    },
+    rejected: {
+      key: "rejected",
+      label: "Rejected applications",
+      predicate: (application) => isRejectedStatus(application.status)
+    },
+    "follow-up": {
+      key: "follow-up",
+      label: "Applications needing follow-up",
+      predicate: (application) => isFollowUpNeeded(application)
     }
   };
 
@@ -1715,11 +1809,19 @@ function openKpiDrilldown(key) {
   const applications = drilldown
     ? state.applications.filter(drilldown.predicate)
     : state.applications;
+  if (key === "follow-up") {
+    applications.sort((first, second) =>
+      (followUpDueDate(first)?.getTime() || Infinity) - (followUpDueDate(second)?.getTime() || Infinity)
+      || (applicationActivityDate(first)?.getTime() || 0) - (applicationActivityDate(second)?.getTime() || 0)
+    );
+  }
   const titles = {
     all: "Total applications",
     active: "Active pipeline",
     interview: "Interview-stage applications",
-    offer: "Offers"
+    offer: "Offers",
+    rejected: "Rejected applications",
+    "follow-up": "Follow up needed"
   };
   const body = document.querySelector("#kpiDrilldownBody");
   body.replaceChildren();
@@ -1732,6 +1834,8 @@ function openKpiDrilldown(key) {
       createCell(application.status),
       createCell(displayValue(application.interviewStage)),
       createCell(formatDate(application), "date-cell"),
+      ...(key === "follow-up" ? [createCell(displayValue(application.nextAction))] : []),
+      ...(key === "follow-up" ? [createNodeCell(createFollowUpButton(application, "Done"), "follow-up-cell")] : []),
       createEmailLinkCell(application.latestEmailLink)
     );
     body.append(row);
@@ -1741,12 +1845,15 @@ function openKpiDrilldown(key) {
   const offerCompensation = document.querySelector("#offerCompensation");
   offerCompensation.hidden = key !== "offer";
   if (key === "offer") renderCompensation(applications);
+  document.querySelector("#kpiNextActionHeader").hidden = key !== "follow-up";
+  document.querySelector("#kpiFollowUpActionHeader").hidden = key !== "follow-up";
 
   document.querySelector("#kpiDialogTitle").textContent = titles[key] || "Applications";
   document.querySelector("#kpiDialogSummary").textContent = `${applications.length} application${applications.length === 1 ? "" : "s"}`;
   document.querySelector("#kpiDialogTableWrap").hidden = applications.length === 0;
   document.querySelector("#kpiDialogEmpty").hidden = applications.length > 0;
-  document.querySelector("#kpiDrilldownDialog").showModal();
+  const dialog = document.querySelector("#kpiDrilldownDialog");
+  if (!dialog.open) dialog.showModal();
 }
 
 function applyFilters() {
@@ -1795,7 +1902,8 @@ function initializeDashboard(rows, sourceLabel) {
   renderMetrics();
   renderCharts();
   renderApplicationInsights();
-  initializeInsightCarousel();
+  renderDailyFocus();
+  initializeInsightCards();
   applyFilters();
   state.dataLoadStatus = "loaded";
   elements.syncState.disabled = false;
@@ -1870,6 +1978,14 @@ document.querySelectorAll("[data-drilldown]").forEach((card) => {
   card.addEventListener("click", () => {
     openKpiDrilldown(card.dataset.drilldown);
   });
+});
+document.addEventListener("click", (event) => {
+  const button = event.target.closest(".follow-up-complete");
+  if (!button) return;
+  const openFollowUpDialog = document.querySelector("#kpiDrilldownDialog").open
+    && !document.querySelector("#kpiFollowUpActionHeader").hidden;
+  recordFollowUp(button.dataset.applicationKey);
+  if (openFollowUpDialog) openKpiDrilldown("follow-up");
 });
 document.querySelector("#closeKpiDialog").addEventListener("click", () => {
   document.querySelector("#kpiDrilldownDialog").close();
@@ -1977,7 +2093,9 @@ async function loadJobPostings() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  initializeTheme();
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  jobElements.source.href = JOBS_SOURCE.sheetUrl;
   initializeDataFreshnessTimer();
   initializeExpandableSectionCards();
   initializeSectionDisclosure({
@@ -1993,23 +2111,16 @@ window.addEventListener("DOMContentLoaded", () => {
     hideLabel: "Hide portals"
   });
   initializeApplicationInsightsDisclosure();
-  initializeVisualCarousel({
+  initializeSectionDisclosure({
     toggleId: "togglePipelineAnalytics",
     contentId: "pipelineAnalyticsContent",
-    viewportId: "analyticsCarouselViewport",
-    previousId: "previousAnalytics",
-    nextId: "nextAnalytics",
-    positionId: "analyticsPosition",
     showLabel: "Show analytics",
-    hideLabel: "Hide analytics"
+    hideLabel: "Hide analytics",
+    onExpand: () => requestAnimationFrame(resizeVisualCharts)
   });
-  initializeVisualCarousel({
+  initializeSectionDisclosure({
     toggleId: "togglePipelineInsights",
     contentId: "pipelineInsightsContent",
-    viewportId: "pipelineInsightsCarouselViewport",
-    previousId: "previousPipelineInsight",
-    nextId: "nextPipelineInsight",
-    positionId: "pipelineInsightPosition",
     showLabel: "Show insights",
     hideLabel: "Hide insights"
   });

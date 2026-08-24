@@ -8,6 +8,8 @@ The application and job-posting CSV feeds are configured in `app.js`. The dashbo
 
 The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. Selecting the freshness indicator opens a summary of applications and status activity dated on the latest update day. The age is an estimate, and the summary cannot distinguish the morning and evening runs because the published CSV provides dates without timestamps.
 
+The dashboard follows the visitor's system light or dark preference on first use. The header theme button saves a manual override in browser `localStorage`. The sheet shortcut beside **New job postings** opens the public source data in a new tab.
+
 Because this is a **Publish to web** URL, every field in the CSV is publicly accessible to anyone with the URL, even if a field is not displayed by the dashboard. This includes recruiter names and email addresses in `Recruiter / POC (Name & Email)`. Remove sensitive contact details from the published tab or publish a separate sanitized tab if that information should remain private.
 
 The current tracker columns are:
@@ -26,6 +28,9 @@ The current tracker columns are:
 - `Location / Work Mode`
 - `Portal / Source`
 - `Action Required / Next Steps`
+- `Follow-Up Date` (optional; overrides the inferred follow-up date)
+- `Last Follow-Up Date` (optional; sheet-based record of completed follow-ups)
+- `Rejection Stage` (optional; explicit rejection category)
 - `Notes / Verification Evidence`
 - `Latest Email Link`
 
@@ -41,21 +46,20 @@ The job-posting feed columns are:
 - `Matching Skills / Resume Alignment`
 - `Application Link`
 
-`Application Link` must contain a raw absolute `http://` or `https://` URL for the dashboard to show a direct **Apply** action. Published CSV output can flatten a spreadsheet hyperlink to display text such as `Apply Here`; when that happens, the dashboard shows **Find listing** and opens an exact job-and-company search instead.
+`Application Link` must contain a raw absolute `http://` or `https://` URL as the cell's displayed value for **Apply now** to open the application directly. Published CSV output can flatten a spreadsheet hyperlink to display text such as `Apply Here`; when that happens, **Apply now** remains unavailable rather than sending users to an unrelated page.
 
 ## Dashboard views
 
 - New job postings with search, work-type filtering, newest/best-match sorting, resume-alignment details, and safe application actions
-- Pipeline totals and an interactive status chart
-- Daily application volume for the latest 30 days
-- Interview-stage funnel with terminal outcomes reported separately
-- Referral cohort sizes, interview rates, and referral lift when both cohorts exist
+- Pipeline totals with direct application drill-downs
+- A single 30-day application-pace chart for spotting consistency and gaps
+- A single interview-progression funnel with terminal outcomes reported separately
 - Offer compensation details inside the Offers KPI popup when salary bands are available
-- Pipeline health, stale-record detection, inactivity aging, and follow-up priorities
-- Employer response and interview conversion across the complete portfolio
-- Source, company, and role concentration rankings with interview conversion
-- Action Center checks for overdue applications and missing analysis fields
-- Rolling weekly cadence compared with the prior seven days and a configurable application goal
+- A daily action queue for overdue, due-today, and upcoming follow-ups, interviews/assessments, missing details, and strong new-job matches
+- Browser-local **Followed up** actions that postpone the next follow-up by seven days without modifying the read-only sheet
+- Weekly pace against the application goal
+- A compact targeting view showing the strongest source, role focus, and company concentration
+- Rejection-stage analysis using explicit sheet categories when available and inferred categories otherwise
 - Search, status, role concentration, and exact-role filters
 - Searchable multi-select slicers on every dataset column
 - Complete 16-column dataset table with secure latest-email links and 10-row pagination
@@ -66,9 +70,12 @@ Insight definitions:
 
 - An employer response means screening/interview/offer progress or a terminal employer decision.
 - Inactivity uses `Last Status Update`, falling back to `Application Date` when needed.
-- Stale applications are active records with more than 14 days of inactivity.
+- Follow-up cadence is: wait through day 7, monitor through day 14, and follow up from day 15. A completed follow-up becomes due again after seven days without newer activity.
+- `Follow-Up Date` overrides inferred cadence. `Last Follow-Up Date` is combined with browser-local completions, and the most recent value wins.
+- **Followed up** writes only to browser `localStorage` because the published CSV is read-only. Add the same date to `Last Follow-Up Date` in Google Sheets to share it across browsers or devices.
+- Rejection categories are `Before screening`, `After assessment`, `After interview`, `Position closed`, and `Unknown`. A populated `Rejection Stage` value overrides inference.
 - Weekly cadence uses rolling seven-day windows ending today. The default application goal is configured by `WEEKLY_APPLICATION_GOAL` in `app.js`.
-- Stage-duration, resume-effectiveness, referral-lift, and compensation comparisons remain unavailable until their source columns contain meaningful data.
+- Stage-duration, resume-effectiveness, referral-lift, and compensation comparisons require meaningful source data and are intentionally omitted from the minimal analysis views when they are not actionable.
 
 ## Preview locally
 

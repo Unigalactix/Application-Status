@@ -4,11 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="A live dashboard for tracking job applications, pipeline progress, referrals, and compensation.">
+  <meta name="color-scheme" content="light dark">
   <title>Application Tracker</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
+  <script>
+    (() => {
+      let storedTheme = null;
+      try {
+        storedTheme = localStorage.getItem("application-tracker-theme");
+      } catch {
+        // Continue with the system preference when storage is unavailable.
+      }
+      const theme = storedTheme === "light" || storedTheme === "dark"
+        ? storedTheme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
@@ -25,13 +41,18 @@
           <h1>Application Tracker</h1>
         </div>
       </div>
-      <button id="syncState" class="sync-state" type="button" title="View the last update summary" aria-haspopup="dialog" disabled>
-        <span class="sync-dot" aria-hidden="true"></span>
-        <span class="sync-copy">
-          <span id="syncLabel">Loading data...</span>
-          <span id="syncCountdown">Calculating next update...</span>
-        </span>
-      </button>
+      <div class="header-actions">
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+          <i data-lucide="moon" aria-hidden="true"></i>
+        </button>
+        <button id="syncState" class="sync-state" type="button" title="View the last update summary" aria-haspopup="dialog" disabled>
+          <span class="sync-dot" aria-hidden="true"></span>
+          <span class="sync-copy">
+            <span id="syncLabel">Loading data...</span>
+            <span id="syncCountdown">Calculating next update...</span>
+          </span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -71,23 +92,90 @@
             <strong id="offerMetric">0</strong>
             <span>Successful outcomes</span>
           </button>
+          <button class="metric metric-rejected" type="button" data-drilldown="rejected" title="View rejected applications">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="circle-x"></i></span>
+            <p>Rejected</p>
+            <strong id="rejectedMetric">0</strong>
+            <span>Employer rejections</span>
+          </button>
+          <button class="metric metric-follow-up" type="button" data-drilldown="follow-up" title="View applications needing follow-up">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="bell-ring"></i></span>
+            <p>Follow up needed</p>
+            <strong id="followUpMetric">0</strong>
+            <span>Review next actions</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="daily-focus-section" aria-labelledby="dailyFocusHeading">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Daily action queue</p>
+            <h2 id="dailyFocusHeading">Today&apos;s focus</h2>
+          </div>
+          <p id="dailyFocusSummary" class="result-summary" aria-live="polite">Preparing priorities</p>
+        </div>
+        <p id="dailyFocusStatus" class="sr-only" aria-live="polite"></p>
+        <div class="focus-cadence" aria-label="Follow-up cadence">
+          <section class="focus-lane focus-overdue" aria-labelledby="overdueFollowUpsHeading">
+            <div class="focus-lane-heading">
+              <div><i data-lucide="circle-alert" aria-hidden="true"></i><h3 id="overdueFollowUpsHeading">Overdue</h3></div>
+              <strong id="overdueFollowUpCount">0</strong>
+            </div>
+            <div id="overdueFollowUps" class="focus-list"></div>
+          </section>
+          <section class="focus-lane focus-today" aria-labelledby="todayFollowUpsHeading">
+            <div class="focus-lane-heading">
+              <div><i data-lucide="calendar-check" aria-hidden="true"></i><h3 id="todayFollowUpsHeading">Due today</h3></div>
+              <strong id="todayFollowUpCount">0</strong>
+            </div>
+            <div id="todayFollowUps" class="focus-list"></div>
+          </section>
+          <section class="focus-lane focus-upcoming" aria-labelledby="upcomingFollowUpsHeading">
+            <div class="focus-lane-heading">
+              <div><i data-lucide="calendar-days" aria-hidden="true"></i><h3 id="upcomingFollowUpsHeading">Upcoming</h3></div>
+              <strong id="upcomingFollowUpCount">0</strong>
+            </div>
+            <div id="upcomingFollowUps" class="focus-list"></div>
+          </section>
+        </div>
+        <div class="focus-support-grid">
+          <section class="focus-support" aria-labelledby="focusInterviewsHeading">
+            <div class="focus-support-heading"><i data-lucide="messages-square" aria-hidden="true"></i><h3 id="focusInterviewsHeading">Interviews &amp; assessments</h3></div>
+            <div id="focusInterviews" class="focus-list"></div>
+          </section>
+          <section class="focus-support" aria-labelledby="focusMissingHeading">
+            <div class="focus-support-heading"><i data-lucide="file-warning" aria-hidden="true"></i><h3 id="focusMissingHeading">Missing key details</h3></div>
+            <div id="focusMissingDetails" class="focus-list"></div>
+          </section>
+          <section class="focus-support" aria-labelledby="focusJobsHeading">
+            <div class="focus-support-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="focusJobsHeading">Strong new job matches</h3></div>
+            <div id="focusJobMatches" class="focus-list"></div>
+          </section>
         </div>
       </div>
     </section>
 
     <div class="expandable-sections shell">
     <section class="job-postings-section" aria-labelledby="jobPostingsHeading">
-      <div class="shell">
-        <div class="section-heading compact-heading">
+      <div class="shell" data-inline-action>
+        <div class="section-heading compact-heading has-inline-action">
           <div>
             <p class="eyebrow">Fresh opportunities</p>
             <h2 id="jobPostingsHeading">New job postings</h2>
             <span id="jobPostingBadge" class="section-card-meta">Loading feed</span>
           </div>
-          <button id="toggleJobPostings" class="section-toggle" type="button" aria-label="Collapse New job postings" aria-expanded="false" aria-controls="jobPostingsContent">
-            <span>Show jobs</span>
-            <i data-lucide="chevron-down" aria-hidden="true"></i>
-          </button>
+          <div class="section-heading-actions">
+            <a id="jobPostingsSource" class="job-source-link" target="_blank" rel="noopener noreferrer" aria-label="Open job postings data source" title="Open job postings data source">
+              <i data-lucide="table-2" aria-hidden="true"></i>
+            </a>
+            <button id="toggleJobPostings" class="section-toggle" type="button" aria-label="Collapse New job postings" aria-expanded="false" aria-controls="jobPostingsContent">
+              <span>Show jobs</span>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div id="jobPostingsContent" class="collapsible-section-content" hidden>
           <div class="job-postings-toolbar" role="search" aria-label="Filter job postings">
@@ -205,7 +293,7 @@
       <div class="shell">
         <div class="section-heading compact-heading">
           <div>
-            <p class="eyebrow">Distribution</p>
+            <p class="eyebrow">Application rhythm</p>
             <h2 id="analyticsHeading">Pipeline analytics</h2>
           </div>
           <button id="togglePipelineAnalytics" class="section-toggle" type="button" aria-label="Collapse Pipeline analytics" aria-expanded="false" aria-controls="pipelineAnalyticsContent">
@@ -214,39 +302,16 @@
           </button>
         </div>
         <div id="pipelineAnalyticsContent" class="collapsible-section-content" hidden>
-          <div class="insight-carousel-controls" aria-label="Pipeline analytics navigation">
-            <button id="previousAnalytics" type="button" title="Previous analytics card" aria-label="Previous analytics card">
-              <i data-lucide="chevron-left" aria-hidden="true"></i>
-            </button>
-            <span id="analyticsPosition" aria-live="polite">1 of 2</span>
-            <button id="nextAnalytics" type="button" title="Next analytics card" aria-label="Next analytics card">
-              <i data-lucide="chevron-right" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div id="analyticsCarouselViewport" class="visual-carousel-viewport" tabindex="0" aria-label="Pipeline analytics cards">
-            <div class="visual-carousel-track">
-          <article class="chart-panel visual-carousel-card">
+          <article class="chart-panel compact-analysis-panel">
             <div class="panel-heading">
               <div>
-                <h3>Applications by status</h3>
-                <p>Current position across the pipeline</p>
-              </div>
-              <i data-lucide="pie-chart" aria-hidden="true"></i>
-            </div>
-            <div class="chart-frame"><canvas id="statusChart" role="img" aria-label="Applications by status. Select a chart segment to view matching applications."></canvas></div>
-          </article>
-          <article class="chart-panel visual-carousel-card">
-            <div class="panel-heading">
-              <div>
-                <h3>Applications submitted</h3>
-                <p>Daily volume over the last 30 days</p>
+                <h3>30-day application pace</h3>
+                <p>Daily submissions reveal consistency and gaps</p>
               </div>
               <i data-lucide="calendar-range" aria-hidden="true"></i>
             </div>
             <div class="chart-frame"><canvas id="timelineChart" role="img" aria-label="Applications submitted during the last 30 days."></canvas></div>
           </article>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -264,45 +329,16 @@
           </button>
         </div>
         <div id="pipelineInsightsContent" class="collapsible-section-content" hidden>
-          <div class="insight-carousel-controls" aria-label="Pipeline insights navigation">
-            <button id="previousPipelineInsight" type="button" title="Previous pipeline insight" aria-label="Previous pipeline insight">
-              <i data-lucide="chevron-left" aria-hidden="true"></i>
-            </button>
-            <span id="pipelineInsightPosition" aria-live="polite">1 of 2</span>
-            <button id="nextPipelineInsight" type="button" title="Next pipeline insight" aria-label="Next pipeline insight">
-              <i data-lucide="chevron-right" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div id="pipelineInsightsCarouselViewport" class="visual-carousel-viewport" tabindex="0" aria-label="Pipeline insight cards">
-            <div class="visual-carousel-track">
-          <article class="chart-panel visual-carousel-card">
+          <article class="chart-panel compact-analysis-panel">
             <div class="panel-heading">
               <div>
-                <h3>Interview-stage funnel</h3>
-                <p>Progression reported in the Interview Stage column</p>
+                <h3>Interview progression</h3>
+                <p>See where applications advance or stop</p>
               </div>
-              <i data-lucide="funnel" aria-hidden="true"></i>
+              <i data-lucide="filter" aria-hidden="true"></i>
             </div>
             <div id="stageFunnel" class="stage-funnel" aria-label="Interview stage funnel"></div>
           </article>
-          <article class="chart-panel visual-carousel-card">
-            <div class="panel-heading">
-              <div>
-                <h3>Referral impact</h3>
-                <p>Interview rate for referred and direct applications</p>
-              </div>
-              <i data-lucide="users" aria-hidden="true"></i>
-            </div>
-            <div class="referral-summary">
-              <div><strong id="referredCount">0</strong><span>With referral</span></div>
-              <div><strong id="directCount">0</strong><span>Without referral</span></div>
-              <div><strong id="referralLift">N/A</strong><span>Interview-rate lift</span></div>
-            </div>
-            <div class="chart-frame referral-frame"><canvas id="referralChart" role="img" aria-label="Referral and interview outcome comparison."></canvas></div>
-            <p id="referralNote" class="data-note"></p>
-          </article>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -320,75 +356,29 @@
           </button>
         </div>
         <div id="applicationInsightsContent" class="collapsible-section-content" hidden>
-          <div class="insight-carousel-controls" aria-label="Application insight navigation">
-            <button id="previousInsights" type="button" title="Previous insights" aria-label="Previous insights">
-              <i data-lucide="chevron-left" aria-hidden="true"></i>
-            </button>
-            <span id="insightPosition" aria-live="polite">1-2 of 8</span>
-            <button id="nextInsights" type="button" title="Next insights" aria-label="Next insights">
-              <i data-lucide="chevron-right" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div id="insightCarouselViewport" class="insight-carousel-viewport" tabindex="0" aria-label="Application insight cards">
-            <div class="intelligence-grid">
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Pipeline health</h3><p>Active, stale, and waiting applications</p></div>
-              <i data-lucide="heart-pulse" aria-hidden="true"></i>
+          <div class="intelligence-grid compact-insight-grid">
+              <article class="insight-panel">
+                <div class="panel-heading">
+                <div><h3>Weekly pace</h3><p>Progress against your application goal</p></div>
+                  <i data-lucide="calendar-clock" aria-hidden="true"></i>
+                </div>
+                <div id="weeklyInsight" class="insight-content"></div>
+              </article>
+              <article class="insight-panel">
+                <div class="panel-heading">
+                  <div><h3>Targeting effectiveness</h3><p>Where applications are producing interviews</p></div>
+                  <i data-lucide="scan-search" aria-hidden="true"></i>
+                </div>
+                <div id="targetingInsight" class="insight-content"></div>
+              </article>
+              <article class="insight-panel">
+                <div class="panel-heading">
+                  <div><h3>Rejection analysis</h3><p>Where applications leave the pipeline</p></div>
+                  <i data-lucide="circle-x" aria-hidden="true"></i>
+                </div>
+                <div id="rejectionInsight" class="insight-content"></div>
+              </article>
             </div>
-            <div id="pipelineHealthInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Response & interview rates</h3><p>Conversion across the complete portfolio</p></div>
-              <i data-lucide="messages-square" aria-hidden="true"></i>
-            </div>
-            <div id="responseInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Application aging</h3><p>Time since the latest recorded activity</p></div>
-              <i data-lucide="hourglass" aria-hidden="true"></i>
-            </div>
-            <div id="agingInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Source effectiveness</h3><p>Volume and interview conversion by portal</p></div>
-              <i data-lucide="radio-tower" aria-hidden="true"></i>
-            </div>
-            <div id="sourceInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Company insights</h3><p>Pipeline concentration and outcomes</p></div>
-              <i data-lucide="building-2" aria-hidden="true"></i>
-            </div>
-            <div id="companyInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Role insights</h3><p>Targeting patterns and conversion</p></div>
-              <i data-lucide="briefcase-business" aria-hidden="true"></i>
-            </div>
-            <div id="roleInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel action-panel">
-            <div class="panel-heading">
-              <div><h3>Action center</h3><p>Records that need attention or enrichment</p></div>
-              <i data-lucide="list-checks" aria-hidden="true"></i>
-            </div>
-            <div id="actionInsight" class="insight-content"></div>
-          </article>
-          <article class="insight-panel">
-            <div class="panel-heading">
-              <div><h3>Weekly cadence</h3><p>This week compared with the prior week</p></div>
-              <i data-lucide="calendar-clock" aria-hidden="true"></i>
-            </div>
-            <div id="weeklyInsight" class="insight-content"></div>
-          </article>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -528,6 +518,8 @@
             <th scope="col">Status</th>
             <th scope="col">Interview Stage</th>
             <th scope="col">Applied</th>
+            <th id="kpiNextActionHeader" scope="col" hidden>Next Steps</th>
+            <th id="kpiFollowUpActionHeader" scope="col" hidden>Follow-up</th>
             <th scope="col">Latest Email</th>
           </tr>
         </thead>
