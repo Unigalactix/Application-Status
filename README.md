@@ -1,10 +1,10 @@
 # Application Tracker Dashboard
 
-A static, responsive dashboard that loads the latest job application data directly from a published Google Sheets CSV. GitHub Pages serves the site; no authentication, API key, or scheduled workflow is required.
+A static, responsive dashboard that loads job application tracking data and new job postings directly from published Google Sheets CSV feeds. GitHub Pages serves the site; no authentication, API key, or scheduled workflow is required.
 
 ## Data source
 
-The live CSV is configured in `app.js` with the published Google Sheets URL. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
+The application and job-posting CSV feeds are configured in `app.js`. The dashboard fetches both with browser caching disabled whenever the page opens. Each feed loads independently, so a job-posting feed failure does not prevent the application tracker from loading.
 
 The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. Selecting the freshness indicator opens a summary of applications and status activity dated on the latest update day. The age is an estimate, and the summary cannot distinguish the morning and evening runs because the published CSV provides dates without timestamps.
 
@@ -29,8 +29,23 @@ The current tracker columns are:
 - `Notes / Verification Evidence`
 - `Latest Email Link`
 
+The job-posting feed columns are:
+
+- `Job Title`
+- `Company`
+- `Location`
+- `Date Posted`
+- `Work Type`
+- `Estimated Compensation`
+- `Match Score`
+- `Matching Skills / Resume Alignment`
+- `Application Link`
+
+`Application Link` must contain a raw absolute `http://` or `https://` URL for the dashboard to show a direct **Apply** action. Published CSV output can flatten a spreadsheet hyperlink to display text such as `Apply Here`; when that happens, the dashboard shows **Find listing** and opens an exact job-and-company search instead.
+
 ## Dashboard views
 
+- New job postings with search, work-type filtering, newest/best-match sorting, resume-alignment details, and safe application actions
 - Pipeline totals and an interactive status chart
 - Daily application volume for the latest 30 days
 - Interview-stage funnel with terminal outcomes reported separately

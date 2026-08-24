@@ -22,6 +22,23 @@ const DATA_SOURCE = {
   url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfFCkkC85sZ8yNJKLp9A7hqnzoaHT7aOVtRQgnWvNp9-0VVUyS_98k7h85oyB_m2lbD-V4J4LUaaPC/pub?output=csv"
 };
 
+const JOBS_SOURCE = {
+  label: "Job postings feed",
+  url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLlTyzQlweD2qxir3pBkosG9KzQAhRZRIjV_i3PiCkQGfE_IkzyKPw074zmenTPYrIkBGqpCFz1Zt0/pub?output=csv"
+};
+
+const JOB_COLUMN_ALIASES = {
+  title: ["Job Title", "Title", "Role"],
+  company: ["Company", "Company Name", "Employer"],
+  location: ["Location", "Job Location"],
+  date: ["Date Posted", "Posted Date", "Date"],
+  workType: ["Work Type", "Employment Type", "Work Mode"],
+  compensation: ["Estimated Compensation", "Compensation", "Salary Range"],
+  matchScore: ["Match Score", "Score"],
+  skills: ["Matching Skills / Resume Alignment", "Matching Skills", "Skills"],
+  applicationLink: ["Application Link", "Apply Link", "Job URL", "URL"]
+};
+
 const PAGE_SIZE = 10;
 const WEEKLY_APPLICATION_GOAL = 10;
 const SCHEDULED_UPDATE_HOURS = [8, 20];
@@ -39,7 +56,8 @@ const state = {
   activeColumnValues: [],
   pendingColumnValues: new Set(),
   insightStartIndex: 0,
-  dataLoadStatus: "loading"
+  dataLoadStatus: "loading",
+  jobPostings: []
 };
 
 const elements = {
@@ -62,6 +80,17 @@ const elements = {
   activeMetric: document.querySelector("#activeMetric"),
   interviewMetric: document.querySelector("#interviewMetric"),
   offerMetric: document.querySelector("#offerMetric")
+};
+
+const jobElements = {
+  badge: document.querySelector("#jobPostingBadge"),
+  search: document.querySelector("#jobPostingSearch"),
+  workType: document.querySelector("#jobWorkTypeFilter"),
+  sort: document.querySelector("#jobPostingSort"),
+  summary: document.querySelector("#jobPostingSummary"),
+  message: document.querySelector("#jobPostingsMessage"),
+  grid: document.querySelector("#jobPostingsGrid"),
+  empty: document.querySelector("#jobPostingsEmpty")
 };
 
 function scheduledUpdateWindow(now = new Date()) {
@@ -240,6 +269,23 @@ function rowsFromCsvMatrix(matrix) {
   ));
 }
 
+function jobRowsFromCsvMatrix(matrix) {
+  const headerIndex = matrix.findIndex((row) => {
+    const cells = row.map((cell) => String(cell ?? "").trim());
+    return JOB_COLUMN_ALIASES.title.some((alias) => cells.includes(alias))
+      && JOB_COLUMN_ALIASES.company.some((alias) => cells.includes(alias));
+  });
+
+  if (headerIndex === -1) return null;
+
+  const headers = matrix[headerIndex].map((header) => String(header ?? "").trim());
+  return matrix.slice(headerIndex + 1).map((values) => Object.fromEntries(
+    headers
+      .map((header, index) => [header, values[index] ?? ""])
+      .filter(([header]) => header)
+  ));
+}
+
 function parseDate(value) {
   if (!value) return null;
 
@@ -291,6 +337,151 @@ function normalizeRows(rows) {
     })
     .filter((application) => application.company !== "Unknown company" || application.role !== "Untitled role")
     .sort((first, second) => (second.parsedDate?.getTime() || 0) - (first.parsedDate?.getTime() || 0));
+}
+
+function normalizeJobRows(rows) {
+  return rows
+    .map((row) => {
+      const rawDate = valueFor(row, JOB_COLUMN_ALIASES.date);
+      const rawScore = valueFor(row, JOB_COLUMN_ALIASES.matchScore);
+      return {
+        title: valueFor(row, JOB_COLUMN_ALIASES.title),
+        company: valueFor(row, JOB_COLUMN_ALIASES.company),
+        location: valueFor(row, JOB_COLUMN_ALIASES.location),
+        rawDate,
+        parsedDate: parseDate(rawDate),
+        workType: valueFor(row, JOB_COLUMN_ALIASES.workType),
+        compensation: valueFor(row, JOB_COLUMN_ALIASES.compensation),
+        matchScore: Number.parseInt(rawScore.replace(/[^0-9]/g, ""), 10) || 0,
+        skills: valueFor(row, JOB_COLUMN_ALIASES.skills),
+        applicationLink: valueFor(row, JOB_COLUMN_ALIASES.applicationLink)
+      };
+    })
+    .filter((job) => job.title || job.company)
+    .sort((first, second) =>
+      (second.parsedDate?.getTime() || 0) - (first.parsedDate?.getTime() || 0)
+      || second.matchScore - first.matchScore
+    );
+}
+
+function formatJobDate(job) {
+  if (!job.parsedDate) return job.rawDate || "Date unavailable";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" })
+    .format(job.parsedDate);
+}
+
+function jobSearchUrl(job) {
+  const url = new URL("https://www.google.com/search");
+  url.searchParams.set("q", `\"${job.title}\" \"${job.company}\" careers apply`);
+  return url.href;
+}
+
+function createJobMeta(iconName, text) {
+  const item = document.createElement("span");
+  const icon = document.createElement("i");
+  icon.dataset.lucide = iconName;
+  icon.setAttribute("aria-hidden", "true");
+  item.append(icon, document.createTextNode(text));
+  return item;
+}
+
+function createJobPostingCard(job) {
+  const card = document.createElement("article");
+  card.className = "job-posting-card";
+
+  const heading = document.createElement("div");
+  heading.className = "job-posting-heading";
+  const company = document.createElement("p");
+  company.textContent = job.company || "Company unavailable";
+  const score = document.createElement("span");
+  score.className = "job-match-score";
+  score.textContent = `${job.matchScore}% match`;
+  heading.append(company, score);
+
+  const title = document.createElement("h3");
+  title.textContent = job.title || "Untitled opportunity";
+
+  const metadata = document.createElement("div");
+  metadata.className = "job-posting-meta";
+  metadata.append(
+    createJobMeta("map-pin", job.location || "Location unavailable"),
+    createJobMeta("briefcase", job.workType || "Work type unavailable"),
+    createJobMeta("calendar-days", formatJobDate(job))
+  );
+  if (job.compensation) metadata.append(createJobMeta("badge-dollar-sign", job.compensation));
+
+  const skills = document.createElement("p");
+  skills.className = "job-posting-skills";
+  skills.textContent = job.skills || "Resume alignment details unavailable";
+
+  const footer = document.createElement("div");
+  footer.className = "job-posting-footer";
+  const age = document.createElement("span");
+  const daysOld = daysSince(job.parsedDate);
+  age.textContent = daysOld === null ? "Posting date unavailable"
+    : daysOld === 0 ? "Posted today"
+      : `${daysOld} day${daysOld === 1 ? "" : "s"} ago`;
+  const directLink = validExternalUrl(job.applicationLink);
+  const action = document.createElement("a");
+  action.className = directLink ? "job-apply-link" : "job-apply-link job-search-link";
+  action.href = directLink || jobSearchUrl(job);
+  action.target = "_blank";
+  action.rel = "noopener noreferrer";
+  action.title = directLink ? "Open application page" : "Direct link unavailable; search for this exact listing";
+  const actionIcon = document.createElement("i");
+  actionIcon.dataset.lucide = directLink ? "send" : "search";
+  actionIcon.setAttribute("aria-hidden", "true");
+  action.append(document.createTextNode(directLink ? "Apply" : "Find listing"), actionIcon);
+  footer.append(age, action);
+
+  card.append(heading, title, metadata, skills, footer);
+  return card;
+}
+
+function renderJobPostings() {
+  const query = jobElements.search.value.trim().toLowerCase();
+  const selectedWorkType = jobElements.workType.value;
+  const jobs = state.jobPostings.filter((job) => {
+    const searchable = [job.title, job.company, job.location, job.workType, job.skills].join(" ").toLowerCase();
+    return (!query || searchable.includes(query))
+      && (!selectedWorkType || job.workType === selectedWorkType);
+  });
+
+  const sorters = {
+    latest: (first, second) => (second.parsedDate?.getTime() || 0) - (first.parsedDate?.getTime() || 0),
+    match: (first, second) => second.matchScore - first.matchScore,
+    company: (first, second) => first.company.localeCompare(second.company)
+  };
+  jobs.sort(sorters[jobElements.sort.value] || sorters.latest);
+  jobElements.grid.replaceChildren(...jobs.map(createJobPostingCard));
+  jobElements.grid.hidden = jobs.length === 0;
+  jobElements.empty.hidden = jobs.length > 0;
+  jobElements.summary.textContent = `${jobs.length} of ${state.jobPostings.length} posting${state.jobPostings.length === 1 ? "" : "s"}`;
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+}
+
+function initializeJobPostings(rows) {
+  state.jobPostings = normalizeJobRows(rows);
+  const workTypes = [...new Set(state.jobPostings.map((job) => job.workType).filter(Boolean))]
+    .sort((first, second) => first.localeCompare(second));
+  workTypes.forEach((workType) => {
+    const option = document.createElement("option");
+    option.value = workType;
+    option.textContent = workType;
+    jobElements.workType.append(option);
+  });
+  jobElements.badge.textContent = `${state.jobPostings.length} available`;
+  jobElements.message.hidden = true;
+  renderJobPostings();
+}
+
+function showJobPostingsError(message) {
+  jobElements.badge.textContent = "Feed unavailable";
+  jobElements.summary.textContent = "Unable to load opportunities";
+  jobElements.message.textContent = message;
+  jobElements.message.hidden = false;
+  jobElements.grid.hidden = true;
+  jobElements.empty.hidden = true;
 }
 
 function countBy(items, getKey) {
@@ -1740,6 +1931,9 @@ document.querySelector("#updateSummaryDialog").addEventListener("keydown", (even
   event.preventDefault();
   event.currentTarget.close();
 });
+jobElements.search.addEventListener("input", renderJobPostings);
+jobElements.workType.addEventListener("change", renderJobPostings);
+jobElements.sort.addEventListener("change", renderJobPostings);
 
 async function loadDashboardData() {
   try {
@@ -1762,10 +1956,36 @@ async function loadDashboardData() {
   }
 }
 
+async function loadJobPostings() {
+  try {
+    const response = await fetch(JOBS_SOURCE.url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`${JOBS_SOURCE.label} returned HTTP ${response.status}`);
+
+    const csvText = await response.text();
+    const results = Papa.parse(csvText, { skipEmptyLines: "greedy" });
+    if (results.errors.some((error) => error.type === "Delimiter" || error.type === "Quotes")) {
+      throw new Error(`${JOBS_SOURCE.label} returned invalid CSV`);
+    }
+
+    const rows = jobRowsFromCsvMatrix(results.data);
+    if (!rows) throw new Error(`${JOBS_SOURCE.label} is missing the expected columns`);
+    initializeJobPostings(rows);
+  } catch (error) {
+    console.warn(error.message);
+    showJobPostingsError("New job postings could not be loaded from the published feed.");
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
   initializeDataFreshnessTimer();
   initializeExpandableSectionCards();
+  initializeSectionDisclosure({
+    toggleId: "toggleJobPostings",
+    contentId: "jobPostingsContent",
+    showLabel: "Show jobs",
+    hideLabel: "Hide jobs"
+  });
   initializeSectionDisclosure({
     toggleId: "toggleJobPortals",
     contentId: "jobPortalsContent",
@@ -1794,4 +2014,5 @@ window.addEventListener("DOMContentLoaded", () => {
     hideLabel: "Hide insights"
   });
   loadDashboardData();
+  loadJobPostings();
 });

@@ -76,6 +76,54 @@
     </section>
 
     <div class="expandable-sections shell">
+    <section class="job-postings-section" aria-labelledby="jobPostingsHeading">
+      <div class="shell">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">Fresh opportunities</p>
+            <h2 id="jobPostingsHeading">New job postings</h2>
+            <span id="jobPostingBadge" class="section-card-meta">Loading feed</span>
+          </div>
+          <button id="toggleJobPostings" class="section-toggle" type="button" aria-label="Collapse New job postings" aria-expanded="false" aria-controls="jobPostingsContent">
+            <span>Show jobs</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="jobPostingsContent" class="collapsible-section-content" hidden>
+          <div class="job-postings-toolbar" role="search" aria-label="Filter job postings">
+            <label class="job-search-control">
+              <i data-lucide="search" aria-hidden="true"></i>
+              <span class="sr-only">Search job postings</span>
+              <input id="jobPostingSearch" type="search" placeholder="Search jobs or companies" autocomplete="off">
+            </label>
+            <label class="job-select-control">
+              <span class="sr-only">Filter jobs by work type</span>
+              <select id="jobWorkTypeFilter">
+                <option value="">All work types</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </label>
+            <label class="job-select-control">
+              <span class="sr-only">Sort job postings</span>
+              <select id="jobPostingSort">
+                <option value="latest">Newest first</option>
+                <option value="match">Best match</option>
+                <option value="company">Company A-Z</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </label>
+            <p id="jobPostingSummary" class="result-summary" aria-live="polite">Loading opportunities</p>
+          </div>
+          <div id="jobPostingsMessage" class="load-message" role="status">Loading new job postings...</div>
+          <div id="jobPostingsGrid" class="job-postings-grid" hidden></div>
+          <div id="jobPostingsEmpty" class="inline-empty" hidden>
+            <i data-lucide="search-x" aria-hidden="true"></i>
+            <div><strong>No matching job postings</strong><span>Try changing the search or work-type filter.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="portals-section" aria-labelledby="portalsHeading">
       <div class="shell">
         <div class="section-heading compact-heading">
