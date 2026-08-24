@@ -25,13 +25,13 @@
           <h1>Application Tracker</h1>
         </div>
       </div>
-      <div class="sync-state" title="Estimated from scheduled updates at 8:00 AM and 8:00 PM local time">
+      <button id="syncState" class="sync-state" type="button" title="View the last update summary" aria-haspopup="dialog" disabled>
         <span class="sync-dot" aria-hidden="true"></span>
         <span class="sync-copy">
           <span id="syncLabel">Loading data...</span>
           <span id="syncCountdown">Calculating next update...</span>
         </span>
-      </div>
+      </button>
     </div>
   </header>
 
@@ -518,6 +518,24 @@
       </button>
     </div>
     <div id="visualizationDialogBody" class="visualization-dialog-body"></div>
+  </dialog>
+
+  <dialog id="updateSummaryDialog" class="kpi-dialog update-summary-dialog" aria-labelledby="updateSummaryTitle">
+    <div class="kpi-dialog-header">
+      <div>
+        <p class="eyebrow">Data freshness</p>
+        <h2 id="updateSummaryTitle">Last update summary</h2>
+        <p id="updateSummaryWindow" class="result-summary"></p>
+      </div>
+      <button id="closeUpdateSummary" class="dialog-close" type="button" title="Close" aria-label="Close update summary">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="update-summary-body">
+      <div id="updateSummaryMetrics" class="update-summary-metrics"></div>
+      <div id="updateSummaryList" class="update-summary-list"></div>
+      <p class="data-note">The sheet provides dates without times, so this summary includes all activity recorded on the latest update date and cannot separate the 8:00 AM and 8:00 PM runs.</p>
+    </div>
   </dialog>
 
   <div id="columnFilterMenu" class="column-filter-menu" role="dialog" aria-labelledby="columnFilterTitle" hidden>

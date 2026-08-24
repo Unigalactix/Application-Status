@@ -54,6 +54,7 @@ const elements = {
   drilldownLabel: document.querySelector("#drilldownLabel"),
   clearDrilldown: document.querySelector("#clearDrilldown"),
   resultSummary: document.querySelector("#resultSummary"),
+  syncState: document.querySelector("#syncState"),
   syncLabel: document.querySelector("#syncLabel"),
   syncCountdown: document.querySelector("#syncCountdown"),
   totalMetric: document.querySelector("#totalMetric"),
@@ -115,6 +116,106 @@ function updateDataFreshness(now = new Date()) {
 function initializeDataFreshnessTimer() {
   updateDataFreshness();
   window.setInterval(updateDataFreshness, 1000);
+}
+
+function isSameLocalDate(first, second) {
+  return first?.getFullYear() === second.getFullYear()
+    && first.getMonth() === second.getMonth()
+    && first.getDate() === second.getDate();
+}
+
+function renderUpdateSummaryMetric(value, label) {
+  const metric = document.createElement("div");
+  const count = document.createElement("strong");
+  count.textContent = value;
+  const description = document.createElement("span");
+  description.textContent = label;
+  metric.append(count, description);
+  return metric;
+}
+
+function openUpdateSummary() {
+  if (state.dataLoadStatus !== "loaded") return;
+
+  const { previousUpdate } = scheduledUpdateWindow();
+  const newApplications = state.applications.filter((application) =>
+    isSameLocalDate(application.parsedDate, previousUpdate)
+  );
+  const updatedApplications = state.applications.filter((application) =>
+    isSameLocalDate(application.parsedLastUpdate, previousUpdate)
+  );
+  const activity = [...new Set([...newApplications, ...updatedApplications])];
+  const metrics = document.querySelector("#updateSummaryMetrics");
+  metrics.replaceChildren(
+    renderUpdateSummaryMetric(newApplications.length, "New applications"),
+    renderUpdateSummaryMetric(updatedApplications.length, "Records updated"),
+    renderUpdateSummaryMetric(activity.filter(isInterviewReached).length, "At screening+"),
+    renderUpdateSummaryMetric(activity.filter((application) => isOfferStatus(application.status)).length, "Offers")
+  );
+
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+  document.querySelector("#updateSummaryWindow").textContent =
+    `Scheduled update: ${dateFormatter.format(previousUpdate)} at ${timeFormatter.format(previousUpdate)}`;
+
+  const list = document.querySelector("#updateSummaryList");
+  list.replaceChildren();
+  if (!activity.length) {
+    const empty = document.createElement("div");
+    empty.className = "inline-empty update-summary-empty";
+    const icon = document.createElement("i");
+    icon.dataset.lucide = "clipboard-check";
+    icon.setAttribute("aria-hidden", "true");
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "No dated activity found";
+    const detail = document.createElement("span");
+    detail.textContent = `No application or status updates are dated ${dateFormatter.format(previousUpdate)}.`;
+    copy.append(title, detail);
+    empty.append(icon, copy);
+    list.append(empty);
+  } else {
+    activity.slice(0, 12).forEach((application) => {
+      const item = document.createElement("article");
+      item.className = "update-summary-item";
+      const copy = document.createElement("div");
+      const company = document.createElement("strong");
+      company.textContent = application.company;
+      const role = document.createElement("span");
+      role.textContent = application.role;
+      copy.append(company, role);
+      const details = document.createElement("div");
+      details.className = "update-summary-item-details";
+      const status = document.createElement("span");
+      status.className = `status-pill status-${statusTone(application.status)}`;
+      status.textContent = application.status;
+      const change = document.createElement("small");
+      const isNew = newApplications.includes(application);
+      const isUpdated = updatedApplications.includes(application);
+      change.textContent = isNew && isUpdated
+        ? "New application · Status updated"
+        : isNew ? "New application" : "Status updated";
+      details.append(status, change);
+      item.append(copy, details);
+      list.append(item);
+    });
+    if (activity.length > 12) {
+      const remaining = document.createElement("p");
+      remaining.className = "update-summary-remaining";
+      remaining.textContent = `+${activity.length - 12} more updated record${activity.length - 12 === 1 ? "" : "s"}`;
+      list.append(remaining);
+    }
+  }
+
+  lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  document.querySelector("#updateSummaryDialog").showModal();
 }
 
 function valueFor(row, aliases) {
@@ -1506,12 +1607,14 @@ function initializeDashboard(rows, sourceLabel) {
   initializeInsightCarousel();
   applyFilters();
   state.dataLoadStatus = "loaded";
-  document.querySelector(".sync-state").title = `${sourceLabel}; estimated from scheduled updates at 8:00 AM and 8:00 PM local time`;
+  elements.syncState.disabled = false;
+  elements.syncState.title = `${sourceLabel}; view the last scheduled update summary`;
   updateDataFreshness();
 }
 
 function showLoadError(message) {
   state.dataLoadStatus = "unavailable";
+  elements.syncState.disabled = true;
   elements.loadMessage.hidden = false;
   elements.loadMessage.textContent = message;
   updateDataFreshness();
@@ -1621,6 +1724,22 @@ document.querySelector("#visualizationDetailDialog").addEventListener("keydown",
   closeVisualizationDetail();
 });
 document.querySelector("#visualizationDetailDialog").addEventListener("close", restoreVisualizationCard);
+elements.syncState.addEventListener("click", openUpdateSummary);
+document.querySelector("#closeUpdateSummary").addEventListener("click", () => {
+  document.querySelector("#updateSummaryDialog").close();
+});
+document.querySelector("#updateSummaryDialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+document.querySelector("#updateSummaryDialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  event.currentTarget.close();
+});
+document.querySelector("#updateSummaryDialog").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  event.currentTarget.close();
+});
 
 async function loadDashboardData() {
   try {

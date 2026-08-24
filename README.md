@@ -6,7 +6,7 @@ A static, responsive dashboard that loads the latest job application data direct
 
 The live CSV is configured in `app.js` with the published Google Sheets URL. The dashboard fetches it with browser caching disabled whenever the page opens and detects the header row after the sheet title.
 
-The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. The age is an estimate because the published CSV does not provide its own refresh timestamp.
+The header estimates data age from the sheet's scheduled updates at 8:00 AM and 8:00 PM and shows a live countdown to the next update. Both times use the visitor's local time zone. Selecting the freshness indicator opens a summary of applications and status activity dated on the latest update day. The age is an estimate, and the summary cannot distinguish the morning and evening runs because the published CSV provides dates without timestamps.
 
 Because this is a **Publish to web** URL, every field in the CSV is publicly accessible to anyone with the URL, even if a field is not displayed by the dashboard. This includes recruiter names and email addresses in `Recruiter / POC (Name & Email)`. Remove sensitive contact details from the published tab or publish a separate sanitized tab if that information should remain private.
 
