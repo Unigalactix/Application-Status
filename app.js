@@ -47,11 +47,12 @@ const PAGE_SIZE = 10;
 const WEEKLY_APPLICATION_GOAL = 10;
 const SCHEDULED_UPDATE_HOURS = [8, 20];
 const FOLLOW_UP_STORAGE_KEY = "application-tracker-follow-ups";
+const APPLIED_JOBS_STORAGE_KEY = "application-tracker-applied-jobs";
 const THEME_STORAGE_KEY = "application-tracker-theme";
 
-function loadFollowUpLog() {
+function loadStoredRecord(storageKey) {
   try {
-    const stored = JSON.parse(localStorage.getItem(FOLLOW_UP_STORAGE_KEY) || "{}");
+    const stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
     return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
   } catch {
     return {};
@@ -70,7 +71,8 @@ const state = {
   pendingColumnValues: new Set(),
   dataLoadStatus: "loading",
   jobPostings: [],
-  followUpLog: loadFollowUpLog()
+  followUpLog: loadStoredRecord(FOLLOW_UP_STORAGE_KEY),
+  appliedJobs: loadStoredRecord(APPLIED_JOBS_STORAGE_KEY)
 };
 
 const elements = {
@@ -447,6 +449,19 @@ function createJobMeta(iconName, text) {
   return item;
 }
 
+function jobKey(job) {
+  return [job.applicationLink, job.company, job.title, job.rawDate].join("|").toLowerCase();
+}
+
+function markJobApplied(job) {
+  state.appliedJobs[jobKey(job)] = new Date().toISOString();
+  try {
+    localStorage.setItem(APPLIED_JOBS_STORAGE_KEY, JSON.stringify(state.appliedJobs));
+  } catch {
+    // Keep the applied state for this page load when browser storage is unavailable.
+  }
+}
+
 function createJobPostingCard(job) {
   const card = document.createElement("article");
   card.className = "job-posting-card";
@@ -484,21 +499,36 @@ function createJobPostingCard(job) {
     : daysOld === 0 ? "Posted today"
       : `${daysOld} day${daysOld === 1 ? "" : "s"} ago`;
   const directLink = validExternalUrl(job.applicationLink);
+  const isApplied = Boolean(state.appliedJobs[jobKey(job)]);
   const action = document.createElement(directLink ? "a" : "span");
-  action.className = directLink ? "job-apply-link" : "job-apply-link is-unavailable";
+  action.className = directLink
+    ? `job-apply-link${isApplied ? " is-applied" : ""}`
+    : "job-apply-link is-unavailable";
   if (directLink) {
     action.href = directLink;
     action.target = "_blank";
     action.rel = "noopener noreferrer";
-    action.title = "Open application page";
+    action.title = isApplied ? "Open application page again" : "Open application page";
+    action.addEventListener("click", () => {
+      if (isApplied) return;
+      markJobApplied(job);
+      action.classList.add("is-applied");
+      action.replaceChildren(document.createTextNode("Applied"));
+      const appliedIcon = document.createElement("i");
+      appliedIcon.dataset.lucide = "check";
+      appliedIcon.setAttribute("aria-hidden", "true");
+      action.append(appliedIcon);
+      action.title = "Open application page again";
+      lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+    });
   } else {
     action.setAttribute("aria-disabled", "true");
     action.title = "The published sheet does not expose this application's URL";
   }
   const actionIcon = document.createElement("i");
-  actionIcon.dataset.lucide = directLink ? "send" : "link-2-off";
+  actionIcon.dataset.lucide = directLink ? (isApplied ? "check" : "send") : "link-2-off";
   actionIcon.setAttribute("aria-hidden", "true");
-  action.append(document.createTextNode("Apply now"), actionIcon);
+  action.append(document.createTextNode(isApplied ? "Applied" : "Apply now"), actionIcon);
   footer.append(age, action);
 
   card.append(heading, title, metadata, skills, footer);
@@ -1391,13 +1421,18 @@ function initializeSectionDisclosure({ toggleId, contentId, showLabel, hideLabel
     const isExpanded = toggle.getAttribute("aria-expanded") === "true";
     toggle.setAttribute("aria-expanded", String(!isExpanded));
     toggle.querySelector("span").textContent = isExpanded ? showLabel : hideLabel;
+    toggle.setAttribute("aria-label", `${isExpanded ? "Expand" : "Collapse"} ${section.querySelector("h2").textContent}`);
     content.hidden = isExpanded;
-    updateExpandableSectionGroup(section, !isExpanded);
-    queueMicrotask(() => updateExpandableCardTrigger(
-      card,
-      toggle,
-      section.classList.contains("is-expanded")
-    ));
+    if (section.closest(".expandable-sections")) {
+      updateExpandableSectionGroup(section, !isExpanded);
+      queueMicrotask(() => updateExpandableCardTrigger(
+        card,
+        toggle,
+        section.classList.contains("is-expanded")
+      ));
+    } else {
+      section.classList.toggle("is-expanded", !isExpanded);
+    }
     if (!isExpanded) onExpand?.();
   });
 }
@@ -2099,6 +2134,12 @@ window.addEventListener("DOMContentLoaded", () => {
   initializeDataFreshnessTimer();
   initializeExpandableSectionCards();
   initializeSectionDisclosure({
+    toggleId: "toggleDailyFocus",
+    contentId: "dailyFocusContent",
+    showLabel: "Show focus",
+    hideLabel: "Hide focus"
+  });
+  initializeSectionDisclosure({
     toggleId: "toggleJobPostings",
     contentId: "jobPostingsContent",
     showLabel: "Show jobs",
@@ -2123,6 +2164,12 @@ window.addEventListener("DOMContentLoaded", () => {
     contentId: "pipelineInsightsContent",
     showLabel: "Show insights",
     hideLabel: "Hide insights"
+  });
+  initializeSectionDisclosure({
+    toggleId: "toggleApplications",
+    contentId: "applicationsContent",
+    showLabel: "Show applications",
+    hideLabel: "Hide applications"
   });
   loadDashboardData();
   loadJobPostings();

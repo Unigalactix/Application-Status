@@ -115,45 +115,53 @@
             <p class="eyebrow">Daily action queue</p>
             <h2 id="dailyFocusHeading">Today&apos;s focus</h2>
           </div>
-          <p id="dailyFocusSummary" class="result-summary" aria-live="polite">Preparing priorities</p>
+          <div class="section-heading-actions">
+            <p id="dailyFocusSummary" class="result-summary" aria-live="polite">Preparing priorities</p>
+            <button id="toggleDailyFocus" class="section-toggle" type="button" aria-label="Expand Today's focus" aria-expanded="false" aria-controls="dailyFocusContent">
+              <span>Show focus</span>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
-        <p id="dailyFocusStatus" class="sr-only" aria-live="polite"></p>
-        <div class="focus-cadence" aria-label="Follow-up cadence">
-          <section class="focus-lane focus-overdue" aria-labelledby="overdueFollowUpsHeading">
-            <div class="focus-lane-heading">
-              <div><i data-lucide="circle-alert" aria-hidden="true"></i><h3 id="overdueFollowUpsHeading">Overdue</h3></div>
-              <strong id="overdueFollowUpCount">0</strong>
-            </div>
-            <div id="overdueFollowUps" class="focus-list"></div>
-          </section>
-          <section class="focus-lane focus-today" aria-labelledby="todayFollowUpsHeading">
-            <div class="focus-lane-heading">
-              <div><i data-lucide="calendar-check" aria-hidden="true"></i><h3 id="todayFollowUpsHeading">Due today</h3></div>
-              <strong id="todayFollowUpCount">0</strong>
-            </div>
-            <div id="todayFollowUps" class="focus-list"></div>
-          </section>
-          <section class="focus-lane focus-upcoming" aria-labelledby="upcomingFollowUpsHeading">
-            <div class="focus-lane-heading">
-              <div><i data-lucide="calendar-days" aria-hidden="true"></i><h3 id="upcomingFollowUpsHeading">Upcoming</h3></div>
-              <strong id="upcomingFollowUpCount">0</strong>
-            </div>
-            <div id="upcomingFollowUps" class="focus-list"></div>
-          </section>
-        </div>
-        <div class="focus-support-grid">
-          <section class="focus-support" aria-labelledby="focusInterviewsHeading">
-            <div class="focus-support-heading"><i data-lucide="messages-square" aria-hidden="true"></i><h3 id="focusInterviewsHeading">Interviews &amp; assessments</h3></div>
-            <div id="focusInterviews" class="focus-list"></div>
-          </section>
-          <section class="focus-support" aria-labelledby="focusMissingHeading">
-            <div class="focus-support-heading"><i data-lucide="file-warning" aria-hidden="true"></i><h3 id="focusMissingHeading">Missing key details</h3></div>
-            <div id="focusMissingDetails" class="focus-list"></div>
-          </section>
-          <section class="focus-support" aria-labelledby="focusJobsHeading">
-            <div class="focus-support-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="focusJobsHeading">Strong new job matches</h3></div>
-            <div id="focusJobMatches" class="focus-list"></div>
-          </section>
+        <div id="dailyFocusContent" class="collapsible-section-content" hidden>
+          <p id="dailyFocusStatus" class="sr-only" aria-live="polite"></p>
+          <div class="focus-cadence" aria-label="Follow-up cadence">
+            <section class="focus-lane focus-overdue" aria-labelledby="overdueFollowUpsHeading">
+              <div class="focus-lane-heading">
+                <div><i data-lucide="circle-alert" aria-hidden="true"></i><h3 id="overdueFollowUpsHeading">Overdue</h3></div>
+                <strong id="overdueFollowUpCount">0</strong>
+              </div>
+              <div id="overdueFollowUps" class="focus-list"></div>
+            </section>
+            <section class="focus-lane focus-today" aria-labelledby="todayFollowUpsHeading">
+              <div class="focus-lane-heading">
+                <div><i data-lucide="calendar-check" aria-hidden="true"></i><h3 id="todayFollowUpsHeading">Due today</h3></div>
+                <strong id="todayFollowUpCount">0</strong>
+              </div>
+              <div id="todayFollowUps" class="focus-list"></div>
+            </section>
+            <section class="focus-lane focus-upcoming" aria-labelledby="upcomingFollowUpsHeading">
+              <div class="focus-lane-heading">
+                <div><i data-lucide="calendar-days" aria-hidden="true"></i><h3 id="upcomingFollowUpsHeading">Upcoming</h3></div>
+                <strong id="upcomingFollowUpCount">0</strong>
+              </div>
+              <div id="upcomingFollowUps" class="focus-list"></div>
+            </section>
+          </div>
+          <div class="focus-support-grid">
+            <section class="focus-support" aria-labelledby="focusInterviewsHeading">
+              <div class="focus-support-heading"><i data-lucide="messages-square" aria-hidden="true"></i><h3 id="focusInterviewsHeading">Interviews &amp; assessments</h3></div>
+              <div id="focusInterviews" class="focus-list"></div>
+            </section>
+            <section class="focus-support" aria-labelledby="focusMissingHeading">
+              <div class="focus-support-heading"><i data-lucide="file-warning" aria-hidden="true"></i><h3 id="focusMissingHeading">Missing key details</h3></div>
+              <div id="focusMissingDetails" class="focus-list"></div>
+            </section>
+            <section class="focus-support" aria-labelledby="focusJobsHeading">
+              <div class="focus-support-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="focusJobsHeading">Strong new job matches</h3></div>
+              <div id="focusJobMatches" class="focus-list"></div>
+            </section>
+          </div>
         </div>
       </div>
     </section>
@@ -392,7 +400,14 @@
             <p class="eyebrow">Detailed view</p>
             <h2 id="applicationsHeading">Applications</h2>
           </div>
-          <div class="filters" role="search">
+          <button id="toggleApplications" class="section-toggle" type="button" aria-label="Expand Applications" aria-expanded="false" aria-controls="applicationsContent">
+            <span>Show applications</span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div id="applicationsContent" class="collapsible-section-content" hidden>
+          <div class="filters applications-toolbar" role="search">
             <label class="search-control">
               <i data-lucide="search" aria-hidden="true"></i>
               <span class="sr-only">Search applications</span>
@@ -413,7 +428,6 @@
               <i data-lucide="chevron-down" aria-hidden="true"></i>
             </label>
           </div>
-        </div>
 
         <div id="drilldownBar" class="drilldown-bar" hidden aria-live="polite">
           <div>
@@ -467,6 +481,7 @@
               <i data-lucide="chevron-right" aria-hidden="true"></i>
             </button>
           </div>
+        </div>
         </div>
       </div>
     </section>

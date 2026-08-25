@@ -615,6 +615,12 @@ h3 {
   outline-offset: 2px;
 }
 
+.job-apply-link.is-applied {
+  color: var(--forest);
+  background: var(--forest-soft);
+  border-color: var(--forest);
+}
+
 .job-apply-link.is-unavailable {
   color: #7d8781;
   background: #eef1ef;
@@ -1531,6 +1537,11 @@ h3 {
 
 .applications-heading {
   align-items: center;
+}
+
+.applications-toolbar {
+  margin-bottom: 18px;
+  justify-content: flex-end;
 }
 
 .filters {

@@ -51,11 +51,13 @@ The job-posting feed columns are:
 ## Dashboard views
 
 - New job postings with search, work-type filtering, newest/best-match sorting, resume-alignment details, and safe application actions
+- Browser-local **Applied** labels for job postings after **Apply now** is selected
 - Pipeline totals with direct application drill-downs
 - A single 30-day application-pace chart for spotting consistency and gaps
 - A single interview-progression funnel with terminal outcomes reported separately
 - Offer compensation details inside the Offers KPI popup when salary bands are available
 - A daily action queue for overdue, due-today, and upcoming follow-ups, interviews/assessments, missing details, and strong new-job matches
+- Collapsible daily-focus and application-table sections
 - Browser-local **Followed up** actions that postpone the next follow-up by seven days without modifying the read-only sheet
 - Weekly pace against the application goal
 - A compact targeting view showing the strongest source, role focus, and company concentration
