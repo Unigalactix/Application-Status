@@ -28,7 +28,8 @@ The current tracker columns are:
 - `Location / Work Mode`
 - `Portal / Source`
 - `Action Required / Next Steps`
-- `Follow-Up Date` (optional; overrides the inferred follow-up date)
+- `Follow-Up Due Date` (overrides the inferred follow-up date)
+- `Follow-Up Status`
 - `Last Follow-Up Date` (optional; sheet-based record of completed follow-ups)
 - `Rejection Stage` (optional; explicit rejection category)
 - `Notes / Verification Evidence`
@@ -44,14 +45,15 @@ The job-posting feed columns are:
 - `Estimated Compensation`
 - `Match Score`
 - `Matching Skills / Resume Alignment`
+- `Referral Contact (Name / Role)`
 - `Application Link`
 
 `Application Link` must contain a raw absolute `http://` or `https://` URL as the cell's displayed value for **Apply now** to open the application directly. Published CSV output can flatten a spreadsheet hyperlink to display text such as `Apply Here`; when that happens, **Apply now** remains unavailable rather than sending users to an unrelated page.
 
 ## Dashboard views
 
-- New job postings with search, work-type filtering, newest/best-match sorting, resume-alignment details, and safe application actions
-- Browser-local **Applied** labels for job postings after **Apply now** is selected
+- New job postings with search, work-type filtering, newest/best-match sorting, resume-alignment details, referral leads, and safe application actions
+- **Applied** labels for job postings already present in the application tracker or selected through **Apply now**; applied postings sort below new opportunities
 - Pipeline totals with direct application drill-downs
 - A single 30-day application-pace chart for spotting consistency and gaps
 - A single interview-progression funnel with terminal outcomes reported separately
@@ -64,7 +66,7 @@ The job-posting feed columns are:
 - Rejection-stage analysis using explicit sheet categories when available and inferred categories otherwise
 - Search, status, role concentration, and exact-role filters
 - Searchable multi-select slicers on every dataset column
-- Complete 16-column dataset table with secure latest-email links and 10-row pagination
+- Complete 18-column dataset table with published follow-up details, secure latest-email links, and 10-row pagination
 
 Missing data is reported explicitly. For example, referral lift is shown as `N/A` until at least one referred application exists, and the compensation view remains empty while salary bands are blank or `N/A`.
 
@@ -73,7 +75,7 @@ Insight definitions:
 - An employer response means screening/interview/offer progress or a terminal employer decision.
 - Inactivity uses `Last Status Update`, falling back to `Application Date` when needed.
 - Follow-up cadence is: wait through day 7, monitor through day 14, and follow up from day 15. A completed follow-up becomes due again after seven days without newer activity.
-- `Follow-Up Date` overrides inferred cadence. `Last Follow-Up Date` is combined with browser-local completions, and the most recent value wins.
+- `Follow-Up Due Date` overrides inferred cadence. `Last Follow-Up Date` is combined with browser-local completions, and the most recent value wins.
 - **Followed up** writes only to browser `localStorage` because the published CSV is read-only. Add the same date to `Last Follow-Up Date` in Google Sheets to share it across browsers or devices.
 - Rejection categories are `Before screening`, `After assessment`, `After interview`, `Position closed`, and `Unknown`. A populated `Rejection Stage` value overrides inference.
 - Weekly cadence uses rolling seven-day windows ending today. The default application goal is configured by `WEEKLY_APPLICATION_GOAL` in `app.js`.

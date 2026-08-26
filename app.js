@@ -13,7 +13,8 @@ const COLUMN_ALIASES = {
   location: ["Location / Work Mode", "Location", "Work Mode"],
   source: ["Portal / Source", "Source", "Portal"],
   nextAction: ["Action Required / Next Steps", "Next Steps", "Next Action"],
-  followUpDate: ["Follow-Up Date", "Follow Up Date", "Follow-up Date"],
+  followUpDate: ["Follow-Up Due Date", "Follow-Up Date", "Follow Up Date", "Follow-up Date"],
+  followUpStatus: ["Follow-Up Status", "Follow Up Status", "Follow-up Status"],
   lastFollowUpDate: ["Last Follow-Up Date", "Last Follow Up Date", "Last Follow-up Date"],
   rejectionStage: ["Rejection Stage", "Rejection Category", "Rejection Reason"],
   notes: ["Notes / Verification Evidence", "Notes", "Verification Evidence"],
@@ -40,6 +41,7 @@ const JOB_COLUMN_ALIASES = {
   compensation: ["Estimated Compensation", "Compensation", "Salary Range"],
   matchScore: ["Match Score", "Score"],
   skills: ["Matching Skills / Resume Alignment", "Matching Skills", "Skills"],
+  referralContact: ["Referral Contact (Name / Role)", "Referral Contact", "Referral Lead"],
   applicationLink: ["Application Link", "Apply Link", "Job URL", "URL"]
 };
 
@@ -398,6 +400,7 @@ function normalizeRows(rows) {
         nextAction: valueFor(row, COLUMN_ALIASES.nextAction),
         rawFollowUpDate,
         parsedFollowUpDate: parseDate(rawFollowUpDate),
+        followUpStatus: valueFor(row, COLUMN_ALIASES.followUpStatus),
         rawLastFollowUpDate,
         parsedLastFollowUpDate: parseDate(rawLastFollowUpDate),
         rejectionStage: valueFor(row, COLUMN_ALIASES.rejectionStage),
@@ -424,6 +427,7 @@ function normalizeJobRows(rows) {
         compensation: valueFor(row, JOB_COLUMN_ALIASES.compensation),
         matchScore: Number.parseInt(rawScore.replace(/[^0-9]/g, ""), 10) || 0,
         skills: valueFor(row, JOB_COLUMN_ALIASES.skills),
+        referralContact: valueFor(row, JOB_COLUMN_ALIASES.referralContact),
         applicationLink: valueFor(row, JOB_COLUMN_ALIASES.applicationLink)
       };
     })
@@ -440,8 +444,10 @@ function formatJobDate(job) {
     .format(job.parsedDate);
 }
 
-function createJobMeta(iconName, text) {
+function createJobMeta(iconName, text, className = "") {
   const item = document.createElement("span");
+  if (className) item.className = className;
+  item.title = text;
   const icon = document.createElement("i");
   icon.dataset.lucide = iconName;
   icon.setAttribute("aria-hidden", "true");
@@ -451,6 +457,29 @@ function createJobMeta(iconName, text) {
 
 function jobKey(job) {
   return [job.applicationLink, job.company, job.title, job.rawDate].join("|").toLowerCase();
+}
+
+function normalizedJobIdentity(value) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function isTrackedApplication(job) {
+  const company = normalizedJobIdentity(job.company);
+  const title = normalizedJobIdentity(job.title);
+  if (!company || !title) return false;
+  return state.applications.some((application) =>
+    normalizedJobIdentity(application.company) === company
+    && normalizedJobIdentity(application.role) === title
+  );
+}
+
+function isJobApplied(job) {
+  return Boolean(state.appliedJobs[jobKey(job)]) || isTrackedApplication(job);
 }
 
 function markJobApplied(job) {
@@ -486,6 +515,9 @@ function createJobPostingCard(job) {
     createJobMeta("calendar-days", formatJobDate(job))
   );
   if (job.compensation) metadata.append(createJobMeta("badge-dollar-sign", job.compensation));
+  if (job.referralContact) {
+    metadata.append(createJobMeta("user-check", `Referral lead: ${job.referralContact}`, "job-referral-meta"));
+  }
 
   const skills = document.createElement("p");
   skills.className = "job-posting-skills";
@@ -499,7 +531,7 @@ function createJobPostingCard(job) {
     : daysOld === 0 ? "Posted today"
       : `${daysOld} day${daysOld === 1 ? "" : "s"} ago`;
   const directLink = validExternalUrl(job.applicationLink);
-  const isApplied = Boolean(state.appliedJobs[jobKey(job)]);
+  const isApplied = isJobApplied(job);
   const action = document.createElement(directLink ? "a" : "span");
   action.className = directLink
     ? `job-apply-link${isApplied ? " is-applied" : ""}`
@@ -520,6 +552,7 @@ function createJobPostingCard(job) {
       action.append(appliedIcon);
       action.title = "Open application page again";
       lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+      window.setTimeout(renderJobPostings, 0);
     });
   } else {
     action.setAttribute("aria-disabled", "true");
@@ -539,7 +572,8 @@ function renderJobPostings() {
   const query = jobElements.search.value.trim().toLowerCase();
   const selectedWorkType = jobElements.workType.value;
   const jobs = state.jobPostings.filter((job) => {
-    const searchable = [job.title, job.company, job.location, job.workType, job.skills].join(" ").toLowerCase();
+    const searchable = [job.title, job.company, job.location, job.workType, job.skills, job.referralContact]
+      .join(" ").toLowerCase();
     return (!query || searchable.includes(query))
       && (!selectedWorkType || job.workType === selectedWorkType);
   });
@@ -549,11 +583,16 @@ function renderJobPostings() {
     match: (first, second) => second.matchScore - first.matchScore,
     company: (first, second) => first.company.localeCompare(second.company)
   };
-  jobs.sort(sorters[jobElements.sort.value] || sorters.latest);
+  const selectedSorter = sorters[jobElements.sort.value] || sorters.latest;
+  jobs.sort((first, second) =>
+    Number(isJobApplied(first)) - Number(isJobApplied(second))
+    || selectedSorter(first, second)
+  );
+  const appliedCount = jobs.filter(isJobApplied).length;
   jobElements.grid.replaceChildren(...jobs.map(createJobPostingCard));
   jobElements.grid.hidden = jobs.length === 0;
   jobElements.empty.hidden = jobs.length > 0;
-  jobElements.summary.textContent = `${jobs.length} of ${state.jobPostings.length} posting${state.jobPostings.length === 1 ? "" : "s"}`;
+  jobElements.summary.textContent = `${jobs.length} of ${state.jobPostings.length} postings · ${appliedCount} applied`;
   lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
 }
 
@@ -804,6 +843,11 @@ function displayValue(value) {
 
 function columnFilterValue(application, key) {
   if (key === "date") return formatDate(application);
+  if (key === "followUpDate") {
+    return application.rawFollowUpDate
+      ? formatDate({ parsedDate: application.parsedFollowUpDate, rawDate: application.rawFollowUpDate })
+      : "Not provided";
+  }
   if (key === "latestEmailLink") return validExternalUrl(application.latestEmailLink)
     ? "Link available"
     : "Not provided";
@@ -987,6 +1031,10 @@ function renderTable() {
     row.append(createCell(displayValue(application.location), "location-cell"));
     row.append(createCell(displayValue(application.source)));
     row.append(createCell(displayValue(application.nextAction), "action-cell"));
+    row.append(createCell(application.rawFollowUpDate
+      ? formatDate({ parsedDate: application.parsedFollowUpDate, rawDate: application.rawFollowUpDate })
+      : "Not provided", "date-cell"));
+    row.append(createCell(displayValue(application.followUpStatus)));
     row.append(createCell(displayValue(application.notes), "notes-cell"));
     row.append(createEmailLinkCell(application.latestEmailLink));
     fragment.append(row);
@@ -1259,7 +1307,9 @@ function renderDailyFocus() {
     return item;
   }, "Key application details are complete");
 
-  const strongJobs = state.jobPostings.filter((job) => job.matchScore >= 80).slice(0, 5);
+  const strongJobs = state.jobPostings
+    .filter((job) => job.matchScore >= 80 && !isJobApplied(job))
+    .slice(0, 5);
   renderFocusList("focusJobMatches", strongJobs, (job) => {
     const item = document.createElement("article");
     item.className = "focus-item";
@@ -1269,7 +1319,9 @@ function renderDailyFocus() {
     const role = document.createElement("span");
     role.textContent = job.title;
     const detail = document.createElement("small");
-    detail.textContent = `${job.matchScore}% match · ${job.location || "Location unavailable"}`;
+    detail.textContent = job.referralContact
+      ? `${job.matchScore}% match · Referral lead: ${job.referralContact}`
+      : `${job.matchScore}% match · ${job.location || "Location unavailable"}`;
     copy.append(company, role, detail);
     item.append(copy);
     const directLink = validExternalUrl(job.applicationLink);
@@ -1909,6 +1961,8 @@ function applyFilters() {
       application.location,
       application.source,
       application.nextAction,
+      application.rawFollowUpDate,
+      application.followUpStatus,
       application.notes,
       application.latestEmailLink
     ].join(" ").toLowerCase();
@@ -1931,6 +1985,7 @@ function applyFilters() {
 
 function initializeDashboard(rows, sourceLabel) {
   state.applications = normalizeRows(rows);
+  if (state.jobPostings.length) renderJobPostings();
   populateStatusFilter();
   populateRoleFilter();
   initializeColumnFilters();

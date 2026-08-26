@@ -440,6 +440,12 @@ h3 {
   border-radius: 6px;
 }
 
+.job-select-control {
+  background: var(--paper);
+  border: 2px solid var(--blue);
+  box-shadow: 0 3px 10px rgba(28, 45, 35, 0.1);
+}
+
 .job-search-control:focus-within,
 .job-select-control:focus-within {
   border-color: var(--forest);
@@ -459,7 +465,13 @@ h3 {
 }
 
 .job-select-control svg {
-  right: 10px;
+  width: 28px;
+  height: 32px;
+  right: 2px;
+  padding: 7px;
+  color: var(--paper);
+  background: var(--blue);
+  border-radius: 4px;
 }
 
 .job-search-control input,
@@ -480,6 +492,8 @@ h3 {
 .job-select-control select {
   padding: 0 32px 0 11px;
   appearance: none;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .job-postings-toolbar .result-summary {
@@ -562,6 +576,12 @@ h3 {
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.job-posting-meta .job-referral-meta {
+  align-items: flex-start;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .job-posting-meta svg {
@@ -1560,6 +1580,12 @@ h3 {
   border-radius: 7px;
 }
 
+.select-control {
+  background: var(--paper);
+  border: 2px solid var(--blue);
+  box-shadow: 0 3px 10px rgba(28, 45, 35, 0.1);
+}
+
 .search-control:focus-within,
 .select-control:focus-within {
   border-color: var(--forest);
@@ -1579,7 +1605,13 @@ h3 {
 }
 
 .select-control svg {
-  right: 11px;
+  width: 30px;
+  height: 34px;
+  right: 2px;
+  padding: 8px;
+  color: var(--paper);
+  background: var(--blue);
+  border-radius: 5px;
 }
 
 .search-control input,
@@ -1598,8 +1630,32 @@ h3 {
 
 .select-control select {
   min-width: 170px;
-  padding: 0 38px 0 13px;
+  padding: 0 40px 0 13px;
   appearance: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.job-select-control:hover,
+.select-control:hover {
+  border-color: var(--forest);
+  box-shadow: 0 5px 14px rgba(28, 45, 35, 0.14);
+}
+
+.job-select-control:hover svg,
+.select-control:hover svg,
+.job-select-control:focus-within svg,
+.select-control:focus-within svg {
+  background: var(--forest);
+}
+
+.job-select-control select option,
+.job-select-control select optgroup,
+.select-control select option,
+.select-control select optgroup {
+  color: var(--ink);
+  background: var(--paper);
+  font-weight: 600;
 }
 
 .role-control select {
@@ -2425,6 +2481,12 @@ footer {
 :root[data-theme="dark"] .column-filter-menu,
 :root[data-theme="dark"] .kpi-dialog {
   border-color: #45594d;
+}
+
+:root[data-theme="dark"] .job-select-control,
+:root[data-theme="dark"] .select-control {
+  border-color: var(--blue);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
 :root[data-theme="dark"] .section-toggle,
