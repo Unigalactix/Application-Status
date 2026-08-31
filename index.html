@@ -413,6 +413,13 @@
               <span class="sr-only">Search applications</span>
               <input id="searchInput" type="search" placeholder="Search applications" autocomplete="off">
             </label>
+            <label class="select-control company-control">
+              <span class="sr-only">Filter by company</span>
+              <select id="companyFilter">
+                <option value="">All companies</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </label>
             <label class="select-control">
               <span class="sr-only">Filter by status</span>
               <select id="statusFilter">
@@ -427,6 +434,10 @@
               </select>
               <i data-lucide="chevron-down" aria-hidden="true"></i>
             </label>
+            <button id="starredFilter" class="starred-filter" type="button" aria-pressed="false" title="Show starred applications only">
+              <i data-lucide="star" aria-hidden="true"></i>
+              <span>Starred only</span>
+            </button>
           </div>
 
         <div id="drilldownBar" class="drilldown-bar" hidden aria-live="polite">
@@ -444,6 +455,7 @@
           <table>
             <thead>
               <tr>
+                <th class="watch-column" scope="col"><span class="sr-only">Watch application</span></th>
                 <th scope="col" data-filter-key="company">Company</th>
                 <th scope="col" data-filter-key="role">Role / Title</th>
                 <th scope="col" data-filter-key="applicationId">Application ID</th>

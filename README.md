@@ -65,6 +65,9 @@ The job-posting feed columns are:
 - A compact targeting view showing the strongest source, role focus, and company concentration
 - Rejection-stage analysis using explicit sheet categories when available and inferred categories otherwise
 - Search, status, role concentration, and exact-role filters
+- Exact company filtering populated from the live application data
+- Browser-local application stars with starred-first ordering and a **Starred only** view
+- Automatic merging of rows with the same non-placeholder `Application ID`
 - Searchable multi-select slicers on every dataset column
 - Complete 18-column dataset table with published follow-up details, secure latest-email links, and 10-row pagination
 
@@ -77,6 +80,8 @@ Insight definitions:
 - Follow-up cadence is: wait through day 7, monitor through day 14, and follow up from day 15. A completed follow-up becomes due again after seven days without newer activity.
 - `Follow-Up Due Date` overrides inferred cadence. `Last Follow-Up Date` is combined with browser-local completions, and the most recent value wins.
 - **Followed up** writes only to browser `localStorage` because the published CSV is read-only. Add the same date to `Last Follow-Up Date` in Google Sheets to share it across browsers or devices.
+- Application stars are also saved in browser `localStorage`; they remain after a reload on the same browser but do not modify the source sheet or sync across devices.
+- Duplicate application IDs are merged before metrics and views are calculated, including slash-separated aliases that share the same primary ID. The newest status-update row supplies current fields, blanks are backfilled from older rows, the earliest application date is retained, and placeholder IDs such as `N/A` remain separate.
 - Rejection categories are `Before screening`, `After assessment`, `After interview`, `Position closed`, and `Unknown`. A populated `Rejection Stage` value overrides inference.
 - Weekly cadence uses rolling seven-day windows ending today. The default application goal is configured by `WEEKLY_APPLICATION_GOAL` in `app.js`.
 - Stage-duration, resume-effectiveness, referral-lift, and compensation comparisons require meaningful source data and are intentionally omitted from the minimal analysis views when they are not actionable.

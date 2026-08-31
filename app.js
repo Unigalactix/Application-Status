@@ -50,7 +50,9 @@ const WEEKLY_APPLICATION_GOAL = 10;
 const SCHEDULED_UPDATE_HOURS = [8, 20];
 const FOLLOW_UP_STORAGE_KEY = "application-tracker-follow-ups";
 const APPLIED_JOBS_STORAGE_KEY = "application-tracker-applied-jobs";
+const STARRED_APPLICATIONS_STORAGE_KEY = "application-tracker-starred-applications";
 const THEME_STORAGE_KEY = "application-tracker-theme";
+const MISSING_APPLICATION_IDENTIFIERS = new Set(["", "n/a", "na", "none", "unknown", "not provided", "tbd", "-"]);
 
 function loadStoredRecord(storageKey) {
   try {
@@ -74,7 +76,8 @@ const state = {
   dataLoadStatus: "loading",
   jobPostings: [],
   followUpLog: loadStoredRecord(FOLLOW_UP_STORAGE_KEY),
-  appliedJobs: loadStoredRecord(APPLIED_JOBS_STORAGE_KEY)
+  appliedJobs: loadStoredRecord(APPLIED_JOBS_STORAGE_KEY),
+  starredApplications: loadStoredRecord(STARRED_APPLICATIONS_STORAGE_KEY)
 };
 
 const elements = {
@@ -83,8 +86,10 @@ const elements = {
   emptyStateText: document.querySelector("#emptyStateText"),
   loadMessage: document.querySelector("#loadMessage"),
   searchInput: document.querySelector("#searchInput"),
+  companyFilter: document.querySelector("#companyFilter"),
   statusFilter: document.querySelector("#statusFilter"),
   roleFilter: document.querySelector("#roleFilter"),
+  starredFilter: document.querySelector("#starredFilter"),
   drilldownBar: document.querySelector("#drilldownBar"),
   drilldownLabel: document.querySelector("#drilldownLabel"),
   clearDrilldown: document.querySelector("#clearDrilldown"),
@@ -371,7 +376,7 @@ function parseDate(value) {
 }
 
 function normalizeRows(rows) {
-  return rows
+  const applications = rows
     .map((row) => {
       const company = valueFor(row, COLUMN_ALIASES.company);
       const role = valueFor(row, COLUMN_ALIASES.role);
@@ -408,8 +413,80 @@ function normalizeRows(rows) {
         latestEmailLink: valueFor(row, COLUMN_ALIASES.latestEmailLink)
       };
     })
-    .filter((application) => application.company !== "Unknown company" || application.role !== "Untitled role")
+    .filter((application) => application.company !== "Unknown company" || application.role !== "Untitled role");
+
+  return mergeDuplicateApplications(applications)
     .sort((first, second) => (second.parsedDate?.getTime() || 0) - (first.parsedDate?.getTime() || 0));
+}
+
+function normalizedApplicationIdentifier(value) {
+  const normalizedId = value.trim().toLowerCase();
+  if (MISSING_APPLICATION_IDENTIFIERS.has(normalizedId)) return null;
+  return normalizedId.split(/\s*\/\s*/)[0].trim();
+}
+
+function mergeDuplicateApplications(applications) {
+  const groupsById = new Map();
+  const applicationsWithoutId = [];
+
+  applications.forEach((application) => {
+    const normalizedId = normalizedApplicationIdentifier(application.applicationId);
+    if (!normalizedId) {
+      applicationsWithoutId.push(application);
+      return;
+    }
+    if (!groupsById.has(normalizedId)) groupsById.set(normalizedId, []);
+    groupsById.get(normalizedId).push(application);
+  });
+
+  const mergedApplications = [...groupsById.values()].map((group) => {
+    if (group.length === 1) return group[0];
+
+    const freshestFirst = [...group].sort((first, second) =>
+      (second.parsedLastUpdate?.getTime() || second.parsedDate?.getTime() || 0)
+      - (first.parsedLastUpdate?.getTime() || first.parsedDate?.getTime() || 0)
+    );
+    const merged = { ...freshestFirst[0] };
+
+    freshestFirst.slice(1).forEach((application) => {
+      Object.keys(merged).forEach((key) => {
+        if ((merged[key] === "" || merged[key] === null) && application[key] !== "" && application[key] !== null) {
+          merged[key] = application[key];
+        }
+      });
+    });
+
+    const applicationDates = group.filter((application) => application.parsedDate);
+    if (applicationDates.length) {
+      const earliest = applicationDates.reduce((current, application) =>
+        application.parsedDate < current.parsedDate ? application : current
+      );
+      merged.rawDate = earliest.rawDate;
+      merged.parsedDate = earliest.parsedDate;
+    }
+
+    const statusUpdates = group.filter((application) => application.parsedLastUpdate);
+    if (statusUpdates.length) {
+      const latest = statusUpdates.reduce((current, application) =>
+        application.parsedLastUpdate > current.parsedLastUpdate ? application : current
+      );
+      merged.rawLastUpdate = latest.rawLastUpdate;
+      merged.parsedLastUpdate = latest.parsedLastUpdate;
+    }
+
+    const followUps = group.filter((application) => application.parsedLastFollowUpDate);
+    if (followUps.length) {
+      const latest = followUps.reduce((current, application) =>
+        application.parsedLastFollowUpDate > current.parsedLastFollowUpDate ? application : current
+      );
+      merged.rawLastFollowUpDate = latest.rawLastFollowUpDate;
+      merged.parsedLastFollowUpDate = latest.parsedLastFollowUpDate;
+    }
+
+    return merged;
+  });
+
+  return [...mergedApplications, ...applicationsWithoutId];
 }
 
 function normalizeJobRows(rows) {
@@ -650,6 +727,23 @@ function isRejectedStatus(status) {
 function applicationKey(application) {
   return [application.applicationId, application.company, application.role, application.rawDate]
     .join("|").toLowerCase();
+}
+
+function isApplicationStarred(application) {
+  return Boolean(state.starredApplications[applicationKey(application)]);
+}
+
+function toggleApplicationStar(application) {
+  const key = applicationKey(application);
+  if (isApplicationStarred(application)) delete state.starredApplications[key];
+  else state.starredApplications[key] = new Date().toISOString();
+
+  try {
+    localStorage.setItem(STARRED_APPLICATIONS_STORAGE_KEY, JSON.stringify(state.starredApplications));
+  } catch {
+    // Keep the starred state for this page load when browser storage is unavailable.
+  }
+  applyFilters();
 }
 
 function startOfDay(date = new Date()) {
@@ -998,6 +1092,18 @@ function renderTable() {
 
   pageApplications.forEach((application) => {
     const row = document.createElement("tr");
+    const starred = isApplicationStarred(application);
+    row.classList.toggle("is-starred", starred);
+    const starButton = document.createElement("button");
+    starButton.type = "button";
+    starButton.className = "application-star";
+    starButton.classList.toggle("is-active", starred);
+    starButton.title = starred ? "Stop watching this application" : "Watch this application";
+    starButton.setAttribute("aria-label", starButton.title);
+    starButton.setAttribute("aria-pressed", String(starred));
+    starButton.innerHTML = '<i data-lucide="star" aria-hidden="true"></i>';
+    starButton.addEventListener("click", () => toggleApplicationStar(application));
+    row.append(createNodeCell(starButton, "watch-cell"));
     row.append(createCell(application.company, "company-cell"));
     row.append(createCell(application.role));
     row.append(createCell(displayValue(application.applicationId)));
@@ -1784,6 +1890,17 @@ function populateStatusFilter() {
   });
 }
 
+function populateCompanyFilter() {
+  [...new Set(state.applications.map((application) => application.company))]
+    .sort((first, second) => first.localeCompare(second))
+    .forEach((company) => {
+      const option = document.createElement("option");
+      option.value = company;
+      option.textContent = company;
+      elements.companyFilter.append(option);
+    });
+}
+
 function populateRoleFilter() {
   const concentrationGroup = document.createElement("optgroup");
   concentrationGroup.label = "Role concentrations";
@@ -1851,8 +1968,10 @@ function setDrilldown(drilldown, { resetControls = true, scroll = true } = {}) {
   state.currentPage = 1;
   if (resetControls) {
     elements.searchInput.value = "";
+    elements.companyFilter.value = "";
     elements.statusFilter.value = "";
     elements.roleFilter.value = "";
+    elements.starredFilter.setAttribute("aria-pressed", "false");
   }
   renderDrilldownState();
   applyFilters();
@@ -1945,8 +2064,10 @@ function openKpiDrilldown(key) {
 
 function applyFilters() {
   const query = elements.searchInput.value.trim().toLowerCase();
+  const selectedCompany = elements.companyFilter.value;
   const selectedStatus = elements.statusFilter.value;
   const selectedRole = elements.roleFilter.value;
+  const starredOnly = elements.starredFilter.getAttribute("aria-pressed") === "true";
   const filtered = state.applications.filter((application) => {
     const searchableText = [
       application.company,
@@ -1967,14 +2088,20 @@ function applyFilters() {
       application.latestEmailLink
     ].join(" ").toLowerCase();
     const matchesQuery = !query || searchableText.includes(query);
+    const matchesCompany = !selectedCompany || application.company === selectedCompany;
     const matchesStatus = !selectedStatus || application.status === selectedStatus;
     const matchesRole = matchesRoleFilter(application, selectedRole);
+    const matchesStarred = !starredOnly || isApplicationStarred(application);
     const matchesDrilldown = !state.drilldown || state.drilldown.predicate(application);
     const matchesColumnFilters = [...state.columnFilters].every(([key, selectedValues]) =>
       selectedValues.has(columnFilterValue(application, key))
     );
-    return matchesQuery && matchesStatus && matchesRole && matchesDrilldown && matchesColumnFilters;
-  });
+    return matchesQuery && matchesCompany && matchesStatus && matchesRole
+      && matchesStarred && matchesDrilldown && matchesColumnFilters;
+  }).sort((first, second) =>
+    Number(isApplicationStarred(second)) - Number(isApplicationStarred(first))
+    || (second.parsedDate?.getTime() || 0) - (first.parsedDate?.getTime() || 0)
+  );
 
   elements.emptyStateText.textContent = state.applications.length
     ? "Try changing your search or filters."
@@ -1986,6 +2113,7 @@ function applyFilters() {
 function initializeDashboard(rows, sourceLabel) {
   state.applications = normalizeRows(rows);
   if (state.jobPostings.length) renderJobPostings();
+  populateCompanyFilter();
   populateStatusFilter();
   populateRoleFilter();
   initializeColumnFilters();
@@ -2018,8 +2146,14 @@ function resetPageAndFilter() {
 }
 
 elements.searchInput.addEventListener("input", resetPageAndFilter);
+elements.companyFilter.addEventListener("change", resetPageAndFilter);
 elements.statusFilter.addEventListener("change", resetPageAndFilter);
 elements.roleFilter.addEventListener("change", resetPageAndFilter);
+elements.starredFilter.addEventListener("click", () => {
+  const isActive = elements.starredFilter.getAttribute("aria-pressed") === "true";
+  elements.starredFilter.setAttribute("aria-pressed", String(!isActive));
+  resetPageAndFilter();
+});
 document.querySelector("#columnFilterSearch").addEventListener("input", renderColumnFilterOptions);
 document.querySelector("#selectAllColumnValues").addEventListener("click", () => {
   state.pendingColumnValues = new Set(state.activeColumnValues);
