@@ -30,6 +30,8 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="workspace.js" defer></script>
+  <link rel="stylesheet" href="workspace.css">
 </head>
 <body>
   <header class="site-header">
@@ -56,7 +58,22 @@
     </div>
   </header>
 
-  <main>
+  <main id="mainContent">
+    <section class="workspace-intro shell" aria-labelledby="pageTitle">
+      <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Overview</a><span id="pageBreadcrumb" hidden></span></nav>
+      <div class="workspace-heading">
+        <div><p class="eyebrow" id="pageEyebrow">Your career workspace</p><h2 id="pageTitle">A clearer view of your next move.</h2><p id="pageDescription">Track momentum, spot opportunities, and focus on what needs you next.</p></div>
+        <button id="refreshData" class="primary-button" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Refresh data</button>
+      </div>
+      <div class="scope-toolbar">
+        <label>Applied date range <select id="dateRange"><option value="all">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="custom">Custom range</option></select></label>
+        <label id="dateFromLabel" hidden>From <input id="dateFrom" type="date"></label>
+        <label id="dateToLabel" hidden>To <input id="dateTo" type="date"></label>
+        <span id="scopeLabel" class="scope-label">All-time application cohort</span>
+      </div>
+      <p id="workspaceStatus" class="workspace-status" role="status"></p>
+      <div id="feedStatus" class="feed-status" aria-live="polite"></div>
+    </section>
     <section class="summary-band" aria-labelledby="summaryHeading">
       <div class="shell">
         <div class="section-heading">
@@ -68,52 +85,70 @@
         </div>
 
         <div class="metrics-grid">
-          <button class="metric metric-total" type="button" data-drilldown="all" title="View all applications">
+          <div class="metric-tile"><a class="metric metric-total" href="?view=all" data-drilldown="all" title="View all applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="files"></i></span>
             <p>Total applications</p>
             <strong id="totalMetric">0</strong>
-            <span id="monthMetric">0 this month</span>
-          </button>
-          <button class="metric metric-active" type="button" data-drilldown="active" title="View active applications">
+            <span id="monthMetric">List &amp; calendar view</span>
+          </a><a id="totalCalendarLink" class="metric-calendar-link" href="?view=all&amp;calendar=true" aria-label="Open application calendar">Calendar</a></div>
+          <a class="metric metric-active" href="?view=active" data-drilldown="active" title="View active applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="activity"></i></span>
             <p>Active pipeline</p>
             <strong id="activeMetric">0</strong>
             <span>Open opportunities</span>
-          </button>
-          <button class="metric metric-interview" type="button" data-drilldown="interview" title="View interview-stage applications">
+          </a>
+          <a class="metric metric-interview" href="?view=assessment" data-drilldown="assessment" title="View active assessments">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="clipboard-check"></i></span>
+            <p>Assessments</p>
+            <strong id="assessmentMetric">0</strong>
+            <span>Current assessment stage</span>
+          </a>
+          <a class="metric metric-interview" href="?view=screening" data-drilldown="screening" title="View active screening interviews">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="messages-square"></i></span>
-            <p>Interviews</p>
+            <p>Screening interview</p>
             <strong id="interviewMetric">0</strong>
-            <span>Interview-stage roles</span>
-          </button>
-          <button class="metric metric-offer" type="button" data-drilldown="offer" title="View offers">
+            <span>Includes screening outreach</span>
+          </a>
+          <a class="metric metric-interview" href="?view=final" data-drilldown="final" title="View active final interviews">
+            <span class="metric-icon" aria-hidden="true"><i data-lucide="users"></i></span>
+            <p>Final interview</p>
+            <strong id="finalMetric">0</strong>
+            <span>Final / onsite / panel stage</span>
+          </a>
+          <a class="metric metric-offer" href="?view=offer" data-drilldown="offer" title="View offers">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="trophy"></i></span>
             <p>Offers</p>
             <strong id="offerMetric">0</strong>
             <span>Successful outcomes</span>
-          </button>
-          <button class="metric metric-rejected" type="button" data-drilldown="rejected" title="View rejected applications">
+          </a>
+          <a class="metric metric-rejected" href="?view=rejected" data-drilldown="rejected" title="View rejected applications">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="circle-x"></i></span>
             <p>Rejected</p>
             <strong id="rejectedMetric">0</strong>
             <span>Employer rejections</span>
-          </button>
-          <button class="metric metric-follow-up" type="button" data-drilldown="follow-up" title="View applications needing follow-up">
+          </a>
+          <a class="metric metric-follow-up" href="?view=follow-up" data-drilldown="follow-up" title="Open your follow-up workspace">
             <span class="metric-icon" aria-hidden="true"><i data-lucide="bell-ring"></i></span>
             <p>Follow up needed</p>
             <strong id="followUpMetric">0</strong>
             <span>Review next actions</span>
-          </button>
+          </a>
         </div>
       </div>
     </section>
 
-    <section class="daily-focus-section" aria-labelledby="dailyFocusHeading">
+    <section id="overviewSignals" class="shell overview-signals" aria-label="Pipeline signals">
+      <article class="workspace-panel"><div class="panel-heading"><div><p class="eyebrow">Action first</p><h3>Next 5 actions</h3></div><a id="allActionsLink" href="?view=follow-up">View all follow-ups &rarr;</a></div><div id="priorityActions" class="priority-actions"></div></article>
+      <article class="workspace-panel"><div class="panel-heading"><div><p class="eyebrow">Keep momentum</p><h3>Active pipeline aging</h3></div></div><p class="data-note">Days since last recorded activity. Select a group to review.</p><div id="agingBuckets" class="aging-buckets"></div></article>
+      <article class="workspace-panel changes-panel"><div class="panel-heading"><div><p class="eyebrow">Since your last visit</p><h3>What changed</h3></div><button id="acknowledgeChanges" class="text-button" type="button">Mark reviewed</button></div><p id="changesSummary"></p><div id="recentChanges"></div><p class="data-note">Compared in this browser only; not a complete status history.</p></article>
+    </section>
+
+    <section class="daily-focus-section" aria-labelledby="dailyFocusHeading" hidden>
       <div class="shell">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Daily action queue</p>
-            <h2 id="dailyFocusHeading">Today&apos;s focus</h2>
+            <h2 id="dailyFocusHeading">Your follow-up workspace</h2>
           </div>
           <div class="section-heading-actions">
             <p id="dailyFocusSummary" class="result-summary" aria-live="polite">Preparing priorities</p>
@@ -173,8 +208,8 @@
           <div>
             <p class="eyebrow">Fresh opportunities</p>
             <h2 id="jobPostingsHeading">New job postings</h2>
-            <span id="jobPostingBadge" class="section-card-meta">Loading feed</span>
           </div>
+          <span id="jobPostingBadge" class="section-card-meta">Loading feed</span>
           <div class="section-heading-actions">
             <a id="jobPostingsSource" class="job-source-link" target="_blank" rel="noopener noreferrer" aria-label="Open job postings data source" title="Open job postings data source">
               <i data-lucide="table-2" aria-hidden="true"></i>
@@ -340,12 +375,12 @@
           <article class="chart-panel compact-analysis-panel">
             <div class="panel-heading">
               <div>
-                <h3>Interview progression</h3>
-                <p>See where applications advance or stop</p>
+                <h3>Current stage distribution</h3>
+                <p>Current recorded stages, not historical conversion</p>
               </div>
               <i data-lucide="filter" aria-hidden="true"></i>
             </div>
-            <div id="stageFunnel" class="stage-funnel" aria-label="Interview stage funnel"></div>
+            <div id="stageFunnel" class="stage-funnel" aria-label="Current application stage distribution"></div>
           </article>
         </div>
       </div>
@@ -374,7 +409,7 @@
               </article>
               <article class="insight-panel">
                 <div class="panel-heading">
-                  <div><h3>Targeting effectiveness</h3><p>Where applications are producing interviews</p></div>
+                  <div><h3>Targeting signals</h3><p>Observed progress with sample sizes</p></div>
                   <i data-lucide="scan-search" aria-hidden="true"></i>
                 </div>
                 <div id="targetingInsight" class="insight-content"></div>
@@ -393,6 +428,12 @@
 
     </div>
 
+    <section id="coverageSection" class="shell workspace-panel coverage-section" aria-labelledby="coverageHeading">
+      <div class="panel-heading"><div><p class="eyebrow">Trust the signals</p><h3 id="coverageHeading">Data coverage</h3></div><span class="local-badge">Personal actions stay on this device</span></div>
+      <div id="coverageGrid" class="coverage-grid"></div>
+      <p class="data-note">Missing is not zero. Resume and compensation comparisons need more populated source data. Follow-ups and stars do not write to the sheet or sync across devices.</p>
+    </section>
+
     <section class="applications-section" aria-labelledby="applicationsHeading">
       <div class="shell">
         <div class="section-heading applications-heading">
@@ -407,6 +448,18 @@
         </div>
 
         <div id="applicationsContent" class="collapsible-section-content" hidden>
+          <div class="view-toolbar">
+            <div class="view-switch" aria-label="Application presentation"><button id="compactView" type="button" aria-pressed="true">Compact list</button><button id="datasetView" type="button" aria-pressed="false">Full dataset</button><button id="calendarView" type="button" aria-pressed="false" hidden>Calendar</button></div>
+            <label>Saved view <select id="savedView"><option value="">Choose a view</option><option value="urgent">Urgent actions</option><option value="starred">Starred active roles</option><option value="stale">Stale active roles (15+ days)</option><option value="declined">Recent declines (7 days)</option></select></label>
+            <button id="saveView" class="text-button" type="button">Save current view</button><button id="deleteView" class="text-button" type="button" hidden>Delete saved view</button>
+          </div>
+          <p id="stageDefinition" class="data-note"></p>
+          <section id="applicationCalendar" class="workspace-panel" aria-labelledby="calendarTitle" hidden>
+            <div class="calendar-toolbar"><button id="previousMonth" type="button" aria-label="Previous month">&larr;</button><h3 id="calendarTitle">Application calendar</h3><button id="nextMonth" type="button" aria-label="Next month">&rarr;</button><button id="calendarToday" type="button">This month</button></div>
+            <p class="data-note">Counts use the applied-date range and application filters below. Select a day to see its applications.</p>
+            <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div id="calendarGrid" class="calendar-grid"></div>
+            <p id="calendarSelection" aria-live="polite"></p><button id="clearCalendarDay" class="text-button" type="button">Show all dates</button>
+          </section>
           <div class="filters applications-toolbar" role="search">
             <label class="search-control">
               <i data-lucide="search" aria-hidden="true"></i>
@@ -439,6 +492,8 @@
               <span>Starred only</span>
             </button>
           </div>
+          <div class="secondary-filters"><label>Activity age <select id="agingFilter"><option value="">Any age</option><option value="0-7">0–7 days</option><option value="8-14">8–14 days</option><option value="15-30">15–30 days</option><option value="31+">31+ days</option></select></label><label id="followUpFilterLabel" hidden>Follow-up queue <select id="followUpFilter"><option value="due">Due / overdue</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="upcoming">Upcoming</option><option value="action">Action required</option><option value="all">All active</option></select></label><button id="resetFilters" class="text-button" type="button">Reset filters</button><span id="listScope" class="data-note" aria-live="polite"></span></div>
+          <div id="compactApplications" class="compact-applications"></div>
 
         <div id="drilldownBar" class="drilldown-bar" hidden aria-live="polite">
           <div>
@@ -501,17 +556,13 @@
     </section>
   </main>
 
-  <dialog id="kpiDrilldownDialog" class="kpi-dialog" aria-labelledby="kpiDialogTitle">
-    <div class="kpi-dialog-header">
-      <div>
-        <p class="eyebrow">KPI drill-down</p>
-        <h2 id="kpiDialogTitle">Applications</h2>
-        <p id="kpiDialogSummary" class="result-summary"></p>
-      </div>
-      <button id="closeKpiDialog" class="dialog-close" type="button" title="Close" aria-label="Close KPI drill-down">
-        <i data-lucide="x" aria-hidden="true"></i>
-      </button>
-    </div>
+  <dialog id="applicationDetail" class="detail-drawer" aria-labelledby="applicationDetailTitle">
+    <div class="drawer-heading"><div><p class="eyebrow">Application details</p><h2 id="applicationDetailTitle"></h2></div><button id="closeApplicationDetail" type="button" aria-label="Close application details">Close</button></div>
+    <div id="applicationDetailBody"></div>
+  </dialog>
+  <dialog id="saveViewDialog" class="save-view-dialog" aria-labelledby="saveViewTitle">
+    <form id="saveViewForm"><h2 id="saveViewTitle">Save this view</h2><label>View name <input id="savedViewName" required maxlength="60" autocomplete="off"></label><p class="data-note">Filters and date range are saved in this browser only.</p><div class="dialog-actions"><button id="cancelSaveView" type="button">Cancel</button><button class="primary-button" type="submit">Save view</button></div></form>
+  </dialog>
     <section id="offerCompensation" class="offer-compensation" aria-labelledby="compensationHeading" hidden>
       <div class="offer-compensation-heading">
         <div>
@@ -538,29 +589,6 @@
         </div>
       </div>
     </section>
-    <div id="kpiDialogTableWrap" class="kpi-dialog-table-wrap">
-      <table class="kpi-dialog-table">
-        <thead>
-          <tr>
-            <th scope="col">Company</th>
-            <th scope="col">Role</th>
-            <th scope="col">Status</th>
-            <th scope="col">Interview Stage</th>
-            <th scope="col">Applied</th>
-            <th id="kpiNextActionHeader" scope="col" hidden>Next Steps</th>
-            <th id="kpiFollowUpActionHeader" scope="col" hidden>Follow-up</th>
-            <th scope="col">Latest Email</th>
-          </tr>
-        </thead>
-        <tbody id="kpiDrilldownBody"></tbody>
-      </table>
-    </div>
-    <div id="kpiDialogEmpty" class="inline-empty" hidden>
-      <i data-lucide="inbox" aria-hidden="true"></i>
-      <div><strong>No matching applications</strong><span>This KPI has no records yet.</span></div>
-    </div>
-  </dialog>
-
   <dialog id="insightDetailDialog" class="kpi-dialog insight-detail-dialog" aria-labelledby="insightDialogTitle">
     <div class="kpi-dialog-header">
       <div>
@@ -603,7 +631,7 @@
     <div class="update-summary-body">
       <div id="updateSummaryMetrics" class="update-summary-metrics"></div>
       <div id="updateSummaryList" class="update-summary-list"></div>
-      <p class="data-note">The sheet provides dates without times, so this summary includes all activity recorded on the latest update date and cannot separate the 8:00 AM and 8:00 PM runs.</p>
+      <p class="data-note">The sheet provides dates without times. This summarizes the latest recorded activity date, not a verified scheduled run. The 8:00 AM / 8:00 PM schedule is an estimate in your local time zone.</p>
     </div>
   </dialog>
 
@@ -635,10 +663,10 @@
 
   <footer>
     <div class="shell footer-inner">
-      <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSfFCkkC85sZ8yNJKLp9A7hqnzoaHT7aOVtRQgnWvNp9-0VVUyS_98k7h85oyB_m2lbD-V4J4LUaaPC/pubhtml" target="_blank" rel="noopener noreferrer" title="Open published Google Sheet">
+      <div class="footer-links"><a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSfFCkkC85sZ8yNJKLp9A7hqnzoaHT7aOVtRQgnWvNp9-0VVUyS_98k7h85oyB_m2lbD-V4J4LUaaPC/pubhtml" target="_blank" rel="noopener noreferrer" title="Open published Google Sheet">
         Application Tracker
         <i data-lucide="external-link" aria-hidden="true"></i>
-      </a>
+      </a><a href="setup.html">Setup guide</a><a href="https://github.com/Unigalactix/Application-Status" target="_blank" rel="noopener noreferrer">Source on GitHub</a></div>
       <span>Loads live from the published Google Sheet</span>
     </div>
   </footer>

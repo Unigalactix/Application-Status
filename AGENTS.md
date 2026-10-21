@@ -2,8 +2,8 @@
 
 ## Architecture
 
-- This is a static GitHub Pages dashboard built with plain HTML, CSS, and browser JavaScript. There is no package manifest, bundler, backend, or automated test suite.
-- [index.html](index.html) defines the page, controls, and dialogs; [styles.css](styles.css) defines responsive layouts and light/dark theme tokens; [app.js](app.js) handles data loading, normalization, metrics, rendering, and interactions.
+- This is a static GitHub Pages dashboard built with plain HTML, CSS, and browser JavaScript. There is no package manifest, bundler, or backend.
+- [index.html](index.html) defines the dashboard and its query-routed dedicated KPI pages; [app.js](app.js) handles feed loading and core rendering; [workspace.js](workspace.js) adds page routing, calendar, compact details, scope, saved views, and change snapshots. [styles.css](styles.css) and [workspace.css](workspace.css) provide shared styles and workspace theme/layout refinements. [setup.html](setup.html) is the standalone public setup guide.
 - Chart.js, Papa Parse, and Lucide load from pinned CDN URLs in the HTML. Preserve deferred script ordering and existing DOM IDs used by JavaScript.
 - See [README.md](README.md) for feed schemas, metric definitions, local preview, and GitHub Pages publishing.
 
@@ -15,13 +15,13 @@
 - Calculate application metrics and views from normalized, deduplicated records. Preserve merging by non-placeholder application ID, slash-separated primary-ID aliases, newest status data, and earliest application dates; do not merge unidentified rows by company alone.
 - Preserve explicit sheet follow-up dates and the most recent sheet/browser completion date. Keep closed applications out of the action queue.
 - Stars, followed-up actions, theme preferences, and locally applied-job markers are browser-local state, not writes to Google Sheets or cross-device synchronization.
-- Freshness is currently estimated from scheduled 8 AM / 8 PM updates in the visitor's local time zone. Do not describe the countdown as proof of a successful sheet refresh or claim precise status history from date-only fields.
+- Keep successful fetch time, latest recorded sheet activity, and the estimated 8 AM / 8 PM schedule distinct. Do not describe the countdown as proof of a successful sheet refresh or claim precise status history from date-only fields.
 - Define denominators and time windows for new metrics. Distinguish current-stage counts from historical conversions and inferred categories from recorded evidence.
 
 ## Implementation conventions
 
 - Keep changes focused and framework-free unless a larger architecture change is explicitly requested. Reuse existing rendering, filtering, dialog, and storage helpers.
-- Preserve consistent results across KPI drill-downs, daily focus, insights, application filters, pagination, and job-posting matching.
+- Preserve consistent results across KPI pages, follow-up queues, insights, calendar, application filters, pagination, and job-posting matching. Applied-date scope affects application KPIs and insights; list filters narrow only the list.
 - Use existing CSS variables for colors and shared layout classes. Support both themes and narrow screens without hiding essential information.
 - Preserve semantic controls, accessible labels, live status messages, keyboard interaction, and dialog dismissal/focus behavior.
 - Treat all sheet values as untrusted text. Prefer `textContent` and DOM construction; do not interpolate feed content into HTML.
@@ -32,7 +32,7 @@
 ## Validation
 
 - Documentation-only changes: check links and run `git diff --check`.
-- For JavaScript changes, run `node --check app.js`; there is no npm build or test command.
+- For JavaScript changes, run `node --check app.js`, `node --check workspace.js`, and `node --test tests\workspace.test.cjs`. There is no npm build command; [tests/workspace.test.cjs](tests/workspace.test.cjs) uses Node's built-in runner and synthetic data.
 - Preview from the repository root with `python -m http.server 8000`, then open `http://localhost:8000`. Do not rely on `file://` for CSV fetching.
 - For UI or behavior changes, verify both feeds, KPI counts/drill-downs, follow-up actions, search and combined filters, pagination, disclosure controls, dialogs, theme switching, and a narrow viewport as relevant.
 - For data-logic changes, exercise missing fields, duplicate/placeholder IDs, date boundaries, unavailable salary/referral data, invalid external links, malformed CSV, and independent feed failures as relevant. Use synthetic records rather than committing live personal data.

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Set up your own Application Tracker: create Google Sheets, fork the repository, configure feeds, and deploy with GitHub Pages.">
+  <meta name="color-scheme" content="light dark">
+  <title>Setup guide · Application Tracker</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
+  <script>
+    (() => {
+      let theme;
+      try { theme = localStorage.getItem("application-tracker-theme"); }
+      catch (error) { console.warn("Theme preference unavailable:", error.message); }
+      document.documentElement.dataset.theme = theme === "light" || theme === "dark"
+        ? theme : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="workspace.css">
+</head>
+<body>
+  <header class="site-header"><div class="shell header-inner">
+    <div class="brand-block"><div><p class="eyebrow">Make it yours</p><h1>Application Tracker</h1></div></div>
+    <div class="header-actions"><a href="index.html" class="primary-button">Back to dashboard</a><button id="guideTheme" class="theme-toggle" type="button" aria-label="Switch color theme">◐</button></div>
+  </div></header>
+  <main class="shell guide-main">
+    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Overview</a><span>/ Setup guide</span></nav>
+    <div class="workspace-heading"><div><p class="eyebrow">From spreadsheet to workspace</p><h2>Your tracker. Your data.</h2><p>A step-by-step guide to fork this project and publish your own application dashboard. No backend, API key, or build step required.</p></div></div>
+    <p class="data-note">You will need a Google account, a GitHub account, and a public repository for the simplest free GitHub Pages setup. Allow about 20–30 minutes.</p>
+    <div class="guide-layout">
+      <nav class="guide-nav" aria-label="Setup steps">
+        <a href="#privacy">Before you publish</a><a href="#tracker">1. Create tracker sheet</a><a href="#jobs">2. Create jobs sheet</a><a href="#publish">3. Publish CSV feeds</a><a href="#fork">4. Fork the repository</a><a href="#configure">5. Connect your sheets</a><a href="#deploy">6. Deploy on Pages</a><a href="#verify">7. Verify your site</a><a href="#maintain">Maintain &amp; troubleshoot</a>
+      </nav>
+      <div class="guide-content">
+        <section id="privacy" class="workspace-panel guide-warning">
+          <h2>Before you publish: your data will be public</h2>
+          <p><strong>Published Google Sheets and GitHub Pages are not private storage.</strong> Anyone with a published URL may read every exported cell, even if the dashboard hides it.</p>
+          <ul><li>Create separate, sanitized public tabs. Keep personal notes, recruiter emails, private email links, and sensitive compensation details in a private sheet.</li><li>Never put passwords, access tokens, or API keys in the repository or sheet.</li><li>Forking initially copies this demo's source URLs. Replace <strong>both</strong> feed URLs before enabling Pages.</li></ul>
+          <p><a href="https://support.google.com/docs/answer/183965" target="_blank" rel="noopener noreferrer">Google's publishing and stop-publishing instructions ↗</a></p>
+        </section>
+        <section id="tracker" class="workspace-panel">
+          <p class="eyebrow">Step 01</p><h2>Create your application tracker</h2>
+          <ol>
+            <li>Open <a href="https://sheets.new" target="_blank" rel="noopener noreferrer">a new Google Sheet</a> and name it <strong>Application Tracker</strong>.</li>
+            <li>Create a tab called <strong>Public Applications</strong>. Put the following header row in row 1. Copy the CSV line into A1, then use <strong>Data → Split text to columns → Comma</strong> if Sheets does not split it automatically.</li>
+          </ol>
+          <pre><code>Company,Role / Title,Application ID,Current Status,Application Date,Last Status Update,Recruiter / POC (Name &amp; Email),Resume Version,Interview Stage,Salary Band,Referral,Location / Work Mode,Portal / Source,Action Required / Next Steps,Follow-Up Due Date,Follow-Up Status,Last Follow-Up Date,Rejection Stage,Notes / Verification Evidence,Latest Email Link</code></pre>
+          <ol start="3">
+            <li>Add one row per application. Start with Company, Role / Title, Current Status, and Application Date. Use <strong>YYYY-MM-DD</strong> for dates. Leave unavailable information blank instead of inventing it.</li>
+            <li>Use statuses such as <strong>Under Review</strong>, <strong>Action Required</strong>, <strong>Declined</strong>, <strong>Inactive / Closed</strong>, or <strong>Offer</strong>.</li>
+            <li>Use stage labels such as <strong>Application Submitted</strong>, <strong>Recruiter Screen</strong>, <strong>Technical Assessment</strong>, or <strong>Final Interview</strong>. Outreach is not a confirmed appointment. Closed/offer outcomes take precedence over an earlier interview stage.</li>
+            <li>Use a unique Application ID where available. Duplicate non-placeholder IDs are merged using the newest status update and earliest application date. Rows without an ID remain separate.</li>
+            <li>Set Follow-Up Due Date to override inferred cadence. Record Last Follow-Up Date in the sheet if completions should be shared across devices.</li>
+          </ol>
+          <p>Optional Rejection Stage categories: <strong>Before screening</strong>, <strong>After assessment</strong>, <strong>After interview</strong>, <strong>Position closed</strong>, or <strong>Unknown</strong>. Without these, the dashboard labels its category as inferred.</p>
+        </section>
+        <section id="jobs" class="workspace-panel">
+          <p class="eyebrow">Step 02</p><h2>Create a job-posting feed</h2>
+          <p>Create another sanitized spreadsheet or tab named <strong>Public Jobs</strong>, with this header row:</p>
+          <pre><code>Job Title,Company,Location,Date Posted,Work Type,Estimated Compensation,Match Score,Matching Skills / Resume Alignment,Referral Contact (Name / Role),Application Link</code></pre>
+          <ul><li>Add jobs you want to consider. Match Score is a 0–100 value you provide; this site does not calculate AI matching or scrape job boards.</li><li>Application Link must display the full <strong>https://...</strong> application URL. Do not use a hyperlink label like "Apply Here"; published CSV may lose the underlying destination.</li><li>If you do not want a job feed yet, publish a header-only jobs tab. The dashboard will show a valid empty state rather than someone else's jobs.</li></ul>
+        </section>
+        <section id="publish" class="workspace-panel">
+          <p class="eyebrow">Step 03</p><h2>Publish each sanitized tab as CSV</h2>
+          <ol><li>In Google Sheets, choose <strong>File → Share → Publish to web</strong>.</li><li>Select only the intended public tab, not the entire workbook. Choose <strong>Comma-separated values (.csv)</strong>.</li><li>Select <strong>Publish</strong>, confirm, and copy the published CSV URL. Repeat for the jobs tab.</li><li>Open each link in a private/incognito window. Confirm it downloads or displays CSV without a sign-in prompt and contains only safe public data.</li><li>Keep automatic republishing enabled if you want sheet edits to become available. Google may take time to republish changes.</li></ol>
+          <p>A published CSV URL usually resembles:</p>
+          <pre><code>https://docs.google.com/spreadsheets/d/e/YOUR_PUBLISHED_ID/pub?gid=YOUR_TAB_ID&amp;single=true&amp;output=csv</code></pre>
+          <p>The normal spreadsheet sharing URL and <code>/pubhtml</code> embed URL are <strong>not</strong> CSV endpoints. Do not discard <code>gid</code> when publishing two tabs in one workbook; it selects the correct tab.</p>
+          <p>For a public viewing shortcut, publish the same tab as a web page and copy its <code>/pubhtml</code> link. Keep the tab's <code>gid</code> parameter where applicable.</p>
+        </section>
+        <section id="fork" class="workspace-panel">
+          <p class="eyebrow">Step 04</p><h2>Fork this repository</h2>
+          <ol><li><a href="https://github.com/signup" target="_blank" rel="noopener noreferrer">Create a GitHub account</a> or sign in.</li><li>Open <a href="https://github.com/Unigalactix/Application-Status/fork" target="_blank" rel="noopener noreferrer">Fork Application-Status</a>.</li><li>Choose your account as owner, keep the name <strong>Application-Status</strong> or choose your own, and create the fork.</li><li>Work in <strong>your fork</strong> for the remaining steps. Do not edit or deploy the original repository.</li></ol>
+          <p><a href="https://docs.github.com/en/get-started/quickstart/fork-a-repo" target="_blank" rel="noopener noreferrer">GitHub's forking guide ↗</a></p>
+        </section>
+        <section id="configure" class="workspace-panel">
+          <p class="eyebrow">Step 05</p><h2>Connect your sheets and personalize</h2>
+          <ol><li>In your fork, open <strong>app.js</strong>, select the pencil (Edit), and find <code>DATA_SOURCE</code>. Replace its <code>url</code> with your application CSV URL.</li><li>Find <code>JOBS_SOURCE</code>. Replace <code>url</code> with your jobs CSV URL and <code>sheetUrl</code> with the matching public jobs web-page link.</li><li>In <strong>index.html</strong>, replace the footer's published Google Sheet link with your tracker web-page URL. Update the footer GitHub link to your fork.</li><li>In <strong>setup.html</strong>, update the repository/fork links if you want the guide to direct future users to your fork rather than the original project.</li><li>Optionally change <code>WEEKLY_APPLICATION_GOAL</code> in app.js. <code>SCHEDULED_UPDATE_HOURS</code> only describes an estimated external schedule; it does not automate sheet updates.</li><li>Commit each edit to your fork's <strong>main</strong> branch. Keep the JavaScript strings quoted and use raw <code>&amp;</code> characters in JavaScript URLs, not HTML's <code>&amp;amp;</code> escape.</li></ol>
+          <pre><code>const DATA_SOURCE = {
+  label: "Live sheet",
+  url: "YOUR_APPLICATIONS_PUBLISHED_CSV_URL"
+};
+
+const JOBS_SOURCE = {
+  label: "Job postings feed",
+  url: "YOUR_JOBS_PUBLISHED_CSV_URL",
+  sheetUrl: "YOUR_JOBS_PUBLISHED_WEB_PAGE_URL"
+};</code></pre>
+          <p>Keep <strong>index.html, app.js, workspace.js, styles.css, workspace.css, setup.html, and favicon.svg</strong> in the repository root. No npm installation or build command is needed.</p>
+        </section>
+        <section id="deploy" class="workspace-panel">
+          <p class="eyebrow">Step 06</p><h2>Deploy with GitHub Pages</h2>
+          <ol><li>In your fork, open <strong>Settings → Pages</strong>.</li><li>Under Build and deployment, choose <strong>Deploy from a branch</strong>.</li><li>Select <strong>main</strong> and <strong>/ (root)</strong>, then select <strong>Save</strong>.</li><li>Wait for the Pages deployment to complete. Check your repository's <strong>Actions</strong> tab if it is still pending or fails.</li><li>Return to Settings → Pages and open the published site link. A project site usually looks like the URL below; use your actual username and repository name, including case.</li></ol>
+          <pre><code>https://YOUR_USERNAME.github.io/YOUR_REPOSITORY/</code></pre>
+          <p><a href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site" target="_blank" rel="noopener noreferrer">Configure a GitHub Pages publishing source ↗</a> · <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site" target="_blank" rel="noopener noreferrer">Create a GitHub Pages site ↗</a></p>
+        </section>
+        <section id="verify" class="workspace-panel">
+          <p class="eyebrow">Step 07</p><h2>Verify before sharing</h2>
+          <ul><li>Both feed indicators show a successful fetch, and the companies belong to your own sheets.</li><li>The Total applications count matches your unique application IDs, not necessarily the number of sheet rows.</li><li>Open every KPI page. Check the Total applications calendar and select a date with known entries.</li><li>Test a follow-up, a star, a saved view, and a reload. These actions stay in that browser, not in your Google Sheet.</li><li>Check the layout on a phone and in both themes. Open Setup guide from the footer.</li><li>Try adding a harmless test row in your public sheet, wait for republishing, then select Refresh data. Remove the test row afterward.</li><li>Review the published CSV once more for private information before sharing the website.</li></ul>
+        </section>
+        <section id="maintain" class="workspace-panel">
+          <h2>Keep it working</h2>
+          <ul><li><strong>Where do updates happen?</strong> Edit Google Sheets; the site reads it on page load or manual refresh. This project does not read your email, scrape jobs, schedule interviews, or write back to Sheets.</li><li><strong>Feed unavailable?</strong> Test its CSV URL in a private window, verify the correct tab is published, and check required headers. One failed feed does not block the other.</li><li><strong>Old data?</strong> Allow Google time to republish. Fetched-at time and latest sheet activity are different; the estimated 8 AM / 8 PM schedule does not prove an upstream update.</li><li><strong>Apply link unavailable?</strong> Use a raw absolute HTTP(S) URL in the cell's displayed value, not a formula label.</li><li><strong>Unexpected counts?</strong> Check applied-date range, saved/list filters, closed statuses, and duplicate IDs. Missing compensation or resume data is reported as missing.</li><li><strong>Browser data missing?</strong> Local stars, follow-ups, saved views, and change comparisons do not follow you to another device or private window. Add shared follow-up completions to Last Follow-Up Date in the sheet.</li><li><strong>Pages is 404?</strong> Verify the main/root publishing setting and deployment status. Confirm index.html is in the root and the URL uses your repository name.</li><li><strong>Need to stop publishing?</strong> Disable Pages in repository settings and stop publishing each Google Sheet tab. Disabling the website alone does not unpublish a sheet.</li></ul>
+          <h3>Optional local preview</h3><p>Clone your fork, open a terminal in its folder, and run:</p><pre><code>python -m http.server 8000</code></pre><p>Open <a href="http://localhost:8000">http://localhost:8000</a>. A local HTTP server is needed; do not open index.html as a file. Stop the server with Ctrl+C when finished.</p>
+          <p><a href="https://docs.github.com/en/pages" target="_blank" rel="noopener noreferrer">GitHub Pages documentation ↗</a> · <a href="https://github.com/Unigalactix/Application-Status" target="_blank" rel="noopener noreferrer">Original source repository ↗</a></p>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer><div class="shell footer-inner"><div class="footer-links"><a href="index.html">Application Tracker</a><a href="setup.html" aria-current="page">Setup guide</a><a href="https://github.com/Unigalactix/Application-Status" target="_blank" rel="noopener noreferrer">Source on GitHub</a></div><span>Built for clarity. Powered by your sheet.</span></div></footer>
+  <script>
+    document.querySelector("#guideTheme").addEventListener("click", () => {
+      const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+      try { localStorage.setItem("application-tracker-theme", theme); }
+      catch (error) { console.warn("Theme preference could not be saved:", error.message); }
+    });
+  </script>
+</body>
+</html>
