@@ -2,6 +2,8 @@
 
 A static, responsive dashboard that loads job application tracking data and new job postings directly from published Google Sheets CSV feeds. GitHub Pages serves the site; no authentication, API key, or scheduled workflow is required.
 
+Repository-specific guidance for coding agents is in [AGENTS.md](AGENTS.md).
+
 ## Data source
 
 The application and job-posting CSV feeds are configured in `app.js`. The dashboard fetches both with browser caching disabled whenever the page opens. Each feed loads independently, so a job-posting feed failure does not prevent the application tracker from loading.
